@@ -354,12 +354,15 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Navigate</div>", unsafe_allow_html=True)
-    page = st.radio(
+    _nav_options = ["📋  Dashboard", "🔍  SQL Playground"]
+    _nav_idx = _nav_options.index(st.session_state.get("sidebar_nav", "📋  Dashboard"))
+    _nav_choice = st.radio(
         "page",
-        ["📋  Dashboard", "🔍  SQL Playground"],
+        _nav_options,
+        index=_nav_idx,
         label_visibility="collapsed",
-        key="sidebar_nav",
     )
+    st.session_state["sidebar_nav"] = _nav_choice
 
 
 # ---------------------------------------------------------------------------
