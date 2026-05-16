@@ -1,6 +1,7 @@
 """
 AI investigation agent.
-Returns an Investigation object with the full reasoning trace + final summary.
+Returns an Investigation object with full trace, summary, and conversation history
+so the analyst can ask follow-up questions that continue from where the agent left off.
 """
 
 import os
@@ -36,11 +37,11 @@ CRITICAL RULES:
 - After establishing that baseline, you are free to use any additional filtering (LIKE, contains, different groupings, subsets) if it helps explain the root cause.
 - Start immediately with WHY the metric changed, not whether it changed.
 
-Investigation strategy (5 queries maximum):
+Investigation strategy (5 queries maximum per turn):
 1. Run the replication SQL for the current year AND prior year to see the absolute count change.
 2. Break down by titleType (movie, tvSeries, tvMovie, etc.) — did one type drive the shift?
 3. Find the top titles by vote count with this genre/category — which specific titles are new or growing?
-4. If still unclear: compare the title count and avg votes between current and prior year for this category.
+4. If still unclear: compare title count and avg votes between current and prior year for this category.
 5. Conclude.
 
 Your final summary must include:
@@ -51,25 +52,51 @@ Your final summary must include:
 
 After at most 5 queries you MUST write your final summary."""
 
+FOLLOWUP_PROMPT = """You are continuing an ongoing data quality investigation.
+You already have the full context of what was investigated and what was found.
+
+The analyst has a follow-up question. Use the run_sql tool to dig deeper if needed (up to 5 queries),
+then write a clear response addressing their question specifically.
+
+You may use any SQL approach that helps answer the question — LIKE, subqueries, different groupings, etc.
+End your response with a clear conclusion. Do NOT repeat the original investigation summary."""
+
+INPUT_PRICE_PER_TOKEN  = 3.0  / 1_000_000
+OUTPUT_PRICE_PER_TOKEN = 15.0 / 1_000_000
+
 
 @dataclass
 class InvestigationStep:
     sql: str
     result: str
-    reasoning: str  # any text Claude wrote before this tool call
+    reasoning: str
 
 
-INPUT_PRICE_PER_TOKEN = 3.0 / 1_000_000   # $3 per million input tokens
-OUTPUT_PRICE_PER_TOKEN = 15.0 / 1_000_000  # $15 per million output tokens
+@dataclass
+class FollowUp:
+    question: str
+    steps: list = field(default_factory=list)   # list[InvestigationStep]
+    response: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+    @property
+    def cost_usd(self) -> float:
+        return (
+            self.input_tokens  * INPUT_PRICE_PER_TOKEN
+            + self.output_tokens * OUTPUT_PRICE_PER_TOKEN
+        )
 
 
 @dataclass
 class Investigation:
-    steps: list[InvestigationStep] = field(default_factory=list)
+    steps: list = field(default_factory=list)       # list[InvestigationStep]
     summary: str = ""
     completed: bool = False
     input_tokens: int = 0
     output_tokens: int = 0
+    messages: list = field(default_factory=list)    # full conversation history
+    follow_ups: list = field(default_factory=list)  # list[FollowUp]
 
     @property
     def total_tokens(self) -> int:
@@ -78,7 +105,7 @@ class Investigation:
     @property
     def cost_usd(self) -> float:
         return (
-            self.input_tokens * INPUT_PRICE_PER_TOKEN
+            self.input_tokens  * INPUT_PRICE_PER_TOKEN
             + self.output_tokens * OUTPUT_PRICE_PER_TOKEN
         )
 
@@ -86,7 +113,7 @@ class Investigation:
 def _run_sql(con: duckdb.DuckDBPyConnection, query: str) -> str:
     try:
         cursor = con.execute(query)
-        rows = cursor.fetchall()
+        rows   = cursor.fetchall()
         if not rows:
             return "Query returned no rows."
         cols = [desc[0] for desc in cursor.description]
@@ -95,8 +122,8 @@ def _run_sql(con: duckdb.DuckDBPyConnection, query: str) -> str:
             for i, c in enumerate(cols)
         ]
         header = "  ".join(c.ljust(col_widths[i]) for i, c in enumerate(cols))
-        sep = "  ".join("-" * w for w in col_widths)
-        body = "\n".join(
+        sep    = "  ".join("-" * w for w in col_widths)
+        body   = "\n".join(
             "  ".join(str(r[i]).ljust(col_widths[i]) for i in range(len(cols)))
             for r in rows[:25]
         )
@@ -107,7 +134,7 @@ def _run_sql(con: duckdb.DuckDBPyConnection, query: str) -> str:
 
 
 def _build_initial_prompt(check: CheckResult) -> str:
-    ctx = check.context
+    ctx  = check.context
     unit = f" {check.unit}" if check.unit else ""
     hist_summary = "  ".join(
         f"{y}: {v}{unit}"
@@ -115,7 +142,7 @@ def _build_initial_prompt(check: CheckResult) -> str:
         if int(y) != ctx.get("current_year")
     )
     replication_sql = ctx.get("replication_sql", "-- replication SQL not available")
-    prior_year = ctx.get("prior_year", ctx.get("current_year", 0) - 1)
+    prior_year      = ctx.get("prior_year", ctx.get("current_year", 0) - 1)
 
     return f"""A monitoring check is flagged. Your job is to explain WHY — not to verify the number.
 
@@ -130,25 +157,75 @@ Historical trend (oldest → newest):
 
 === EXACT SQL THAT PRODUCED THIS RESULT ===
 Use this SQL as your starting point. Run it for {prior_year} and {ctx.get('current_year')} to see absolute counts.
-DO NOT modify the WHERE clause filters — especially do not use LIKE instead of =.
+Always use the same filters (exact =) when comparing to prior periods.
 
 {replication_sql}
 
 === YOUR TASK ===
-Start with Step 1: run the replication SQL above to get the absolute title counts for both years.
+Start with Step 1: run the replication SQL above to get absolute title counts for both years.
 Then investigate what drove the change — specific title types, new releases, or a few high-influence records."""
 
 
-def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> Investigation:
-    """Run the agentic investigation and return the full trace + summary."""
-    result = Investigation()
+def _run_agent_loop(
+    client: anthropic.Anthropic,
+    messages: list,
+    system: str,
+    max_rounds: int = 8,
+) -> tuple[list, str, bool, int, int]:
+    """
+    Run the agentic loop. Returns (updated_messages, final_text, completed, input_tok, output_tok).
+    Caller is responsible for building steps from tool calls.
+    """
+    steps_out = []
+    input_tokens  = 0
+    output_tokens = 0
+
+    for _ in range(max_rounds):
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=4096,
+            system=system,
+            tools=[SQL_TOOL],
+            messages=messages,
+        )
+        messages.append({"role": "assistant", "content": response.content})
+        input_tokens  += response.usage.input_tokens
+        output_tokens += response.usage.output_tokens
+
+        turn_text = " ".join(
+            block.text for block in response.content if hasattr(block, "text")
+        ).strip()
+
+        if response.stop_reason == "end_turn":
+            return messages, turn_text, True, input_tokens, output_tokens, steps_out
+
+        tool_results = []
+        for block in response.content:
+            if block.type != "tool_use":
+                continue
+            query      = block.input.get("query", "")
+            sql_result = _run_sql(client._client if hasattr(client, "_client") else None, query)
+            steps_out.append(InvestigationStep(sql=query, result=sql_result, reasoning=turn_text))
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": sql_result,
+            })
+        messages.append({"role": "user", "content": tool_results})
+
+    return messages, "Agent reached query limit without conclusion.", False, input_tokens, output_tokens, steps_out
+
+
+def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> "Investigation":
+    """Run the initial investigation and return an Investigation with full conversation history."""
+    inv = Investigation()
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        result.summary = "Error: ANTHROPIC_API_KEY environment variable not set."
-        return result
+        inv.summary = "Error: ANTHROPIC_API_KEY environment variable not set."
+        return inv
 
-    client = anthropic.Anthropic(api_key=api_key)
+    client   = anthropic.Anthropic(api_key=api_key)
     messages = [{"role": "user", "content": _build_initial_prompt(check)}]
 
     for _ in range(8):
@@ -160,43 +237,104 @@ def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> Investiga
             messages=messages,
         )
         messages.append({"role": "assistant", "content": response.content})
+        inv.input_tokens  += response.usage.input_tokens
+        inv.output_tokens += response.usage.output_tokens
 
-        # Accumulate token usage
-        result.input_tokens += response.usage.input_tokens
-        result.output_tokens += response.usage.output_tokens
-
-        # Collect any text Claude wrote in this turn (reasoning between tool calls)
         turn_text = " ".join(
             block.text for block in response.content if hasattr(block, "text")
         ).strip()
 
         if response.stop_reason == "end_turn":
-            result.summary = turn_text
-            result.completed = True
-            return result
+            inv.summary   = turn_text
+            inv.completed = True
+            inv.messages  = messages
+            return inv
 
-        # Process tool calls, recording each as a step
         tool_results = []
         for block in response.content:
             if block.type != "tool_use":
                 continue
-            query = block.input.get("query", "")
+            query      = block.input.get("query", "")
             sql_result = _run_sql(con, query)
-            result.steps.append(InvestigationStep(
-                sql=query,
-                result=sql_result,
-                reasoning=turn_text,
-            ))
+            inv.steps.append(InvestigationStep(sql=query, result=sql_result, reasoning=turn_text))
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,
                 "content": sql_result,
             })
-
         messages.append({"role": "user", "content": tool_results})
 
-    result.summary = (
-        "Agent reached the query limit without a final conclusion. "
-        "Review the steps below to draw your own conclusion."
-    )
-    return result
+    inv.summary  = "Agent reached query limit. Review steps below."
+    inv.messages = messages
+    return inv
+
+
+def continue_investigation(
+    inv: "Investigation",
+    question: str,
+    con: duckdb.DuckDBPyConnection,
+) -> None:
+    """
+    Append a follow-up question to an existing investigation in-place.
+    The agent has full context of everything investigated so far.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        fu = FollowUp(question=question, response="Error: ANTHROPIC_API_KEY not set.")
+        inv.follow_ups.append(fu)
+        return
+
+    client = anthropic.Anthropic(api_key=api_key)
+    fu     = FollowUp(question=question)
+
+    # Append analyst question to the existing conversation
+    messages = inv.messages + [{
+        "role": "user",
+        "content": (
+            f"Follow-up from the analyst:\n\n{question}\n\n"
+            "Please investigate this further using additional SQL queries if needed (up to 5). "
+            "Build on what you already found — do not repeat the original investigation."
+        ),
+    }]
+
+    for _ in range(8):
+        response = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=4096,
+            system=FOLLOWUP_PROMPT,
+            tools=[SQL_TOOL],
+            messages=messages,
+        )
+        messages.append({"role": "assistant", "content": response.content})
+        fu.input_tokens   += response.usage.input_tokens
+        fu.output_tokens  += response.usage.output_tokens
+        inv.input_tokens  += response.usage.input_tokens
+        inv.output_tokens += response.usage.output_tokens
+
+        turn_text = " ".join(
+            block.text for block in response.content if hasattr(block, "text")
+        ).strip()
+
+        if response.stop_reason == "end_turn":
+            fu.response  = turn_text
+            inv.messages = messages   # update history so next follow-up has full context
+            inv.follow_ups.append(fu)
+            return
+
+        tool_results = []
+        for block in response.content:
+            if block.type != "tool_use":
+                continue
+            query      = block.input.get("query", "")
+            sql_result = _run_sql(con, query)
+            fu.steps.append(InvestigationStep(sql=query, result=sql_result, reasoning=turn_text))
+            tool_results.append({
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": sql_result,
+            })
+        messages.append({"role": "user", "content": tool_results})
+
+    fu.response  = "Follow-up reached query limit. Review steps above."
+    inv.messages = messages
+    inv.follow_ups.append(fu)

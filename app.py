@@ -12,7 +12,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from data_loader import ensure_data
 from checks import get_connection, run_all_checks, CheckResult
-from investigator import investigate, Investigation
+from investigator import investigate, continue_investigation, Investigation
 
 st.set_page_config(
     page_title="IMDB Data Quality Monitor",
@@ -68,31 +68,32 @@ html, body { background-color: #f0f3fa !important; }
     font-size: 0.85rem;
 }
 .stTabs [aria-selected="true"] {
-    background: #c8d4ea !important;
+    background: #f0f3fa !important;
     color: #1a1d35 !important;
     border: 2px solid #b8c8e0 !important;
-    border-bottom: 2px solid #c8d4ea !important;
+    border-bottom: 2px solid #f0f3fa !important;
 }
 
-/* ── Tab panel: medium slate background for the check area ── */
+/* ── Tab panel: light background, same as page ── */
 .stTabs [data-baseweb="tab-panel"] {
-    background: #c8d4ea;
+    background: #f0f3fa;
     border-radius: 0 12px 12px 12px;
     padding: 20px 18px 28px 18px;
     margin-top: -2px;
 }
 
-/* ── Each row: white card floating on the slate background ── */
+/* ── Each row: slate card — the mid-level accent ── */
 .stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"] {
-    background: #ffffff;
+    background: #c8d4ea;
     border-radius: 10px;
-    border: 1px solid #e2e8f5;
+    border: 1px solid #b4c4de;
     padding: 2px 14px;
     margin: 5px 0;
     box-shadow: 0 2px 8px rgba(26,29,53,0.07);
     transition: box-shadow 0.15s;
 }
 .stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"]:hover {
+    background: #bccde6;
     box-shadow: 0 4px 16px rgba(26,29,53,0.13);
 }
 
@@ -112,8 +113,8 @@ html, body { background-color: #f0f3fa !important; }
     border-radius: 16px;
     padding: 22px 20px;
     text-align: center;
-    box-shadow: 0 2px 12px rgba(26,29,53,0.07);
-    border: 1px solid #e8ecf8;
+    box-shadow: 0 2px 12px rgba(26,29,53,0.10);
+    border: 1px solid #b4c4de;
 }
 .summary-number {
     font-size: 2.8rem;
@@ -133,7 +134,7 @@ html, body { background-color: #f0f3fa !important; }
 .color-navy   { color: #1a1d35; }
 .color-muted  { color: #6b7094; }
 
-/* ── Section headers — on slate background ── */
+/* ── Section headers — on light panel background ── */
 .section-header {
     font-size: 0.72rem;
     font-weight: 800;
@@ -142,10 +143,10 @@ html, body { background-color: #f0f3fa !important; }
     color: #2a3560;
     margin: 28px 0 4px 0;
     padding-bottom: 8px;
-    border-bottom: 2px solid #a8b8d4;
+    border-bottom: 2px solid #b4c4de;
 }
 
-/* ── Column header labels — on slate background ── */
+/* ── Column header labels — on light panel background ── */
 .col-header {
     font-size: 0.68rem;
     font-weight: 700;
@@ -156,12 +157,12 @@ html, body { background-color: #f0f3fa !important; }
 
 /* ── Row separator — hidden, cards provide spacing ── */
 
-/* ── Check row text ── */
+/* ── Check row text — on slate row background ── */
 .check-name        { font-size: 0.88rem; font-weight: 600; color: #1a1d35; }
 .check-name-flagged{ font-size: 0.88rem; font-weight: 700; color: #0a0c1f; }
-.check-value-ok    { font-size: 1.05rem; font-weight: 700; color: #2e7d32; }
-.check-value-flag  { font-size: 1.05rem; font-weight: 700; color: #c62828; }
-.check-range       { font-size: 0.78rem; color: #4a4f78; font-weight: 500; }
+.check-value-ok    { font-size: 1.05rem; font-weight: 700; color: #1b5e20; }
+.check-value-flag  { font-size: 1.05rem; font-weight: 700; color: #b71c1c; }
+.check-range       { font-size: 0.78rem; color: #2a3560; font-weight: 500; }
 
 /* ── Status pills ── */
 .pill {
@@ -638,6 +639,45 @@ with tab_dashboard:
                         if vc2.button("▶ Run", key=f"{inv_key}_verify_{i}"):
                             send_to_playground(q)
                             st.info("Sent to SQL Playground — click the tab above.")
+
+                # ── Follow-up chat ──────────────────────────────────────────
+                st.markdown("---")
+                st.markdown("#### Follow-up Questions")
+
+                for fu_idx, fu in enumerate(inv.follow_ups):
+                    with st.chat_message("user"):
+                        st.markdown(fu.question)
+                    with st.chat_message("assistant"):
+                        if fu.steps:
+                            for si, step in enumerate(fu.steps, 1):
+                                with st.expander(f"Step {si}", expanded=False):
+                                    if step.reasoning:
+                                        st.info(step.reasoning)
+                                    fsc1, fsc2 = st.columns([5, 1])
+                                    fsc1.code(step.sql, language="sql")
+                                    if fsc2.button("▶ Run", key=f"{inv_key}_fu{fu_idx}_s{si}"):
+                                        send_to_playground(step.sql)
+                                        st.info("Sent to SQL Playground — click the tab above.")
+                                    st.code(step.result)
+                        st.markdown(fu.response)
+                        st.caption(
+                            f"Tokens: {fu.input_tokens + fu.output_tokens:,}"
+                            f"  ·  Cost: ${fu.cost_usd:.4f}"
+                        )
+
+                with st.form(key=f"{inv_key}_fu_form", clear_on_submit=True):
+                    fu_col1, fu_col2 = st.columns([6, 1])
+                    fu_question = fu_col1.text_input(
+                        "follow-up",
+                        placeholder="Ask a follow-up question, e.g. Which specific titles drove the change?",
+                        label_visibility="collapsed",
+                    )
+                    fu_submit = fu_col2.form_submit_button("Send →", type="primary")
+
+                if fu_submit and fu_question.strip():
+                    with st.spinner("AI investigating follow-up..."):
+                        continue_investigation(inv, fu_question.strip(), get_con())
+                    st.rerun()
 
         st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
 
