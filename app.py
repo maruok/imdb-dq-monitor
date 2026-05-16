@@ -92,15 +92,15 @@ html, body { background-color: #f0f3fa !important; }
 }
 .summary-label {
     font-size: 0.72rem;
-    color: #9399b8;
+    color: #6b7094;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    font-weight: 600;
+    font-weight: 700;
 }
-.color-green  { color: #4caf50; }
-.color-red    { color: #e53935; }
+.color-green  { color: #2e7d32; }
+.color-red    { color: #c62828; }
 .color-navy   { color: #1a1d35; }
-.color-muted  { color: #9399b8; }
+.color-muted  { color: #6b7094; }
 
 /* ── Section headers ── */
 .section-header {
@@ -108,10 +108,10 @@ html, body { background-color: #f0f3fa !important; }
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #9399b8;
+    color: #4a4f78;
     margin: 32px 0 4px 0;
     padding-bottom: 10px;
-    border-bottom: 2px solid #e4e8f5;
+    border-bottom: 2px solid #d8ddf0;
 }
 
 /* ── Column header labels ── */
@@ -120,15 +120,15 @@ html, body { background-color: #f0f3fa !important; }
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #b0b5d0;
+    color: #6b7094;
 }
 
 /* ── Check row text ── */
-.check-name        { font-size: 0.88rem; font-weight: 500; color: #3a3f6e; }
-.check-name-flagged{ font-size: 0.88rem; font-weight: 700; color: #1a1d35; }
-.check-value-ok    { font-size: 1.05rem; font-weight: 700; color: #4caf50; }
-.check-value-flag  { font-size: 1.05rem; font-weight: 700; color: #e53935; }
-.check-range       { font-size: 0.78rem; color: #9399b8; }
+.check-name        { font-size: 0.88rem; font-weight: 600; color: #1a1d35; }
+.check-name-flagged{ font-size: 0.88rem; font-weight: 700; color: #0a0c1f; }
+.check-value-ok    { font-size: 1.05rem; font-weight: 700; color: #2e7d32; }
+.check-value-flag  { font-size: 1.05rem; font-weight: 700; color: #c62828; }
+.check-range       { font-size: 0.78rem; color: #4a4f78; font-weight: 500; }
 
 /* ── Status pills ── */
 .pill {
@@ -380,14 +380,15 @@ with tab_dashboard:
             config={"displayModeBar": False},
         )
 
+        unit = f" {check.unit}" if check.unit else ""
         val_cls = "check-value-flag" if check.flagged else "check-value-ok"
         c_val.markdown(
-            f"<div class='{val_cls}'>{check.current_val}{check.unit}</div>",
+            f"<div class='{val_cls}'>{check.current_val}{unit}</div>",
             unsafe_allow_html=True,
         )
         c_range.markdown(
             f"<div class='check-range'>"
-            f"{check.fence_low}{check.unit} – {check.fence_high}{check.unit}</div>",
+            f"{check.fence_low}{unit} – {check.fence_high}{unit}</div>",
             unsafe_allow_html=True,
         )
 
