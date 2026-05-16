@@ -49,17 +49,8 @@ html, body { background-color: #f0f3fa !important; }
     color: #e8eaf0 !important;
 }
 
-/* ── Sticky tab bar ── */
-/* stMain is the culprit — Streamlit sets overflow:hidden there */
-section[data-testid="stMain"]        { overflow: visible !important; }
-[data-testid="stMainBlockContainer"] { overflow: visible !important; }
-.stTabs                              { overflow: visible !important; }
-
+/* ── Tab bar ── */
 [data-baseweb="tab-list"] {
-    position: -webkit-sticky !important;
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 9999 !important;
     background: #f0f3fa !important;
     border-bottom: 2px solid #dde2f0;
     gap: 4px;
