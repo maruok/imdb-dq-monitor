@@ -352,17 +352,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown("---")
-    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Navigate</div>", unsafe_allow_html=True)
-    _nav_options = ["📋  Dashboard", "🔍  SQL Playground"]
-    _nav_idx = _nav_options.index(st.session_state.get("sidebar_nav", "📋  Dashboard"))
-    _nav_choice = st.radio(
-        "page",
-        _nav_options,
-        index=_nav_idx,
-        label_visibility="collapsed",
-    )
-    st.session_state["sidebar_nav"] = _nav_choice
 
 
 # ---------------------------------------------------------------------------
@@ -593,20 +582,31 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-_tnb1, _tnb2, _ = st.columns([1.4, 2.0, 9])
-if _tnb1.button("📋 Dashboard", key="top_nav_db"):
+_tnb1, _tnb2, _ = st.columns([1.3, 2.0, 9])
+if _tnb1.button("Dashboard", key="top_nav_db"):
     st.session_state["sidebar_nav"] = "📋  Dashboard"
     st.rerun()
-if _tnb2.button("🔍 SQL Playground", key="top_nav_sql"):
+if _tnb2.button("SQL Playground", key="top_nav_sql"):
     st.session_state["sidebar_nav"] = "🔍  SQL Playground"
     st.rerun()
 
 page = st.session_state["sidebar_nav"]
 
-# Sidebar download button — added here so build_excel/load_checks are in scope
+# Sidebar navigate + export — placed here so build_excel/load_checks are in scope
 with st.sidebar:
     st.markdown("---")
-    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px'>Export</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Navigate</div>", unsafe_allow_html=True)
+    _nav_options = ["📋  Dashboard", "🔍  SQL Playground"]
+    _nav_idx = _nav_options.index(st.session_state.get("sidebar_nav", "📋  Dashboard"))
+    _nav_choice = st.radio(
+        "page",
+        _nav_options,
+        index=_nav_idx,
+        label_visibility="collapsed",
+    )
+    st.session_state["sidebar_nav"] = _nav_choice
+
+    st.markdown("<div style='margin-top:16px;font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px'>Export</div>", unsafe_allow_html=True)
     _dl_checks = load_checks(current_year, n_hist)
     _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     st.download_button(
