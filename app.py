@@ -240,24 +240,17 @@ html, body { background-color: #f0f3fa !important; }
     color: #4a7c0a !important;
     box-shadow: 0 2px 8px rgba(139,195,74,0.2) !important;
 }
+/* primary buttons (Send → in follow-up form) */
+[data-testid="stBaseButton-primary"],
 .stButton > button[kind="primary"] {
-    background: rgba(255,255,255,0.72) !important;
-    color: #1a1d35 !important;
-    border: 1.5px solid rgba(26,29,53,0.45) !important;
-    font-weight: 700 !important;
-    font-size: 0.75rem !important;
-    padding: 6px 18px !important;
-    border-radius: 20px !important;
-    white-space: nowrap !important;
-    letter-spacing: 0.04em !important;
-    backdrop-filter: blur(4px) !important;
-    text-align: center !important;
-}
-.stButton > button[kind="primary"]:hover {
     background: #1a1d35 !important;
     color: #b5e550 !important;
-    border-color: #1a1d35 !important;
-    box-shadow: 0 2px 10px rgba(26,29,53,0.22) !important;
+    border: none !important;
+    font-weight: 700 !important;
+}
+[data-testid="stBaseButton-primary"]:hover,
+.stButton > button[kind="primary"]:hover {
+    background: #2a2d55 !important;
 }
 
 /* ── Expander ── */
@@ -635,7 +628,7 @@ if page == "📋  Dashboard":
                 f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
-            if c_action.button("▶ Investigate", key=key, type="primary"):
+            if c_action.button("▶ Investigate", key=key):
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
