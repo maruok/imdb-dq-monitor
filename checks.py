@@ -103,6 +103,15 @@ def run_numerical_checks(
         flagged = current_val < low or current_val > high
         direction = "HIGH" if current_val > high else ("LOW" if current_val < low else "")
 
+        prior_year = current_year - 1
+        replication_sql = (
+            f"-- Exact SQL used by the monitoring check (run for any year)\n"
+            f"SELECT b.startYear, {agg_expr} AS metric_value, COUNT(*) AS n_titles\n"
+            f"FROM basics b JOIN ratings r USING (tconst)\n"
+            f"WHERE b.startYear IN ({prior_year}, {current_year})\n"
+            f"  AND {where}\n"
+            f"GROUP BY b.startYear ORDER BY b.startYear"
+        )
         results.append(CheckResult(
             name=label,
             metric=label,
@@ -116,9 +125,10 @@ def run_numerical_checks(
             context={
                 "check_type": "numerical",
                 "current_year": current_year,
+                "prior_year": prior_year,
                 "hist_years": hist_years,
                 "by_year": {k: round(v, 2) for k, v in by_year.items()},
-                "sql_hint": f"SELECT b.startYear, {agg_expr} FROM basics b JOIN ratings r USING (tconst) WHERE {where} GROUP BY b.startYear ORDER BY b.startYear",
+                "replication_sql": replication_sql,
             },
         ))
 
@@ -172,6 +182,17 @@ def run_null_checks(
         flagged = current_val > high
         direction = "HIGH" if flagged else ""
 
+        prior_year = current_year - 1
+        replication_sql = (
+            f"-- Exact SQL used by the monitoring check\n"
+            f"SELECT b.startYear,\n"
+            f"       COUNT(*) AS total_titles,\n"
+            f"       {null_expr} AS null_pct\n"
+            f"FROM basics b JOIN ratings r USING (tconst)\n"
+            f"WHERE b.startYear IN ({prior_year}, {current_year})\n"
+            f"  AND {where}\n"
+            f"GROUP BY b.startYear ORDER BY b.startYear"
+        )
         results.append(CheckResult(
             name=label,
             metric=label,
@@ -185,8 +206,10 @@ def run_null_checks(
             context={
                 "check_type": "null_rate",
                 "current_year": current_year,
+                "prior_year": prior_year,
                 "hist_years": hist_years,
                 "by_year": {k: round(v, 2) for k, v in by_year.items()},
+                "replication_sql": replication_sql,
             },
         ))
 
@@ -243,6 +266,25 @@ def run_categorical_checks(
         flagged = current_val < low or current_val > high
         direction = "HIGH" if current_val > high else ("LOW" if current_val < low else "")
 
+        prior_year = current_year - 1
+        replication_sql = (
+            f"-- Exact SQL used by the monitoring check\n"
+            f"-- Denominator: ALL titles for that year (titleType is never null here)\n"
+            f"WITH totals AS (\n"
+            f"    SELECT b.startYear, COUNT(*) AS total\n"
+            f"    FROM basics b JOIN ratings r USING (tconst)\n"
+            f"    WHERE b.startYear IN ({prior_year}, {current_year})\n"
+            f"    GROUP BY b.startYear\n"
+            f")\n"
+            f"SELECT b.startYear, b.titleType,\n"
+            f"       COUNT(*) AS title_count, t.total AS total_titles,\n"
+            f"       ROUND(COUNT(*) * 100.0 / t.total, 2) AS pct\n"
+            f"FROM basics b JOIN ratings r USING (tconst)\n"
+            f"JOIN totals t ON b.startYear = t.startYear\n"
+            f"WHERE b.titleType = '{cat}'  -- EXACT match, not LIKE\n"
+            f"GROUP BY b.startYear, b.titleType, t.total\n"
+            f"ORDER BY b.startYear"
+        )
         results.append(CheckResult(
             name=f"titleType: {cat}",
             metric=f"titleType={cat}",
@@ -258,8 +300,10 @@ def run_categorical_checks(
                 "category_field": "titleType",
                 "category_value": cat,
                 "current_year": current_year,
+                "prior_year": prior_year,
                 "hist_years": hist_years,
                 "by_year": {k: round(v, 2) for k, v in by_year.items()},
+                "replication_sql": replication_sql,
             },
         ))
 
@@ -306,6 +350,28 @@ def run_categorical_checks(
         flagged = current_val < low or current_val > high
         direction = "HIGH" if current_val > high else ("LOW" if current_val < low else "")
 
+        prior_year = current_year - 1
+        replication_sql = (
+            f"-- Exact SQL used by the monitoring check\n"
+            f"-- genres field contains the FULL genre string (e.g. 'Drama', 'Action,Comedy')\n"
+            f"-- Denominator: titles with non-null genres only\n"
+            f"-- Match is EXACT equality (=), NOT a LIKE/contains search\n"
+            f"WITH totals AS (\n"
+            f"    SELECT b.startYear, COUNT(*) AS total\n"
+            f"    FROM basics b JOIN ratings r USING (tconst)\n"
+            f"    WHERE b.genres IS NOT NULL\n"
+            f"      AND b.startYear IN ({prior_year}, {current_year})\n"
+            f"    GROUP BY b.startYear\n"
+            f")\n"
+            f"SELECT b.startYear, b.genres,\n"
+            f"       COUNT(*) AS title_count, t.total AS total_titles,\n"
+            f"       ROUND(COUNT(*) * 100.0 / t.total, 2) AS pct\n"
+            f"FROM basics b JOIN ratings r USING (tconst)\n"
+            f"JOIN totals t ON b.startYear = t.startYear\n"
+            f"WHERE b.genres = '{cat}'  -- EXACT match on full genres string\n"
+            f"GROUP BY b.startYear, b.genres, t.total\n"
+            f"ORDER BY b.startYear"
+        )
         results.append(CheckResult(
             name=f"Genre: {cat}",
             metric=f"genre={cat}",
@@ -321,8 +387,10 @@ def run_categorical_checks(
                 "category_field": "genres",
                 "category_value": cat,
                 "current_year": current_year,
+                "prior_year": prior_year,
                 "hist_years": hist_years,
                 "by_year": {k: round(v, 2) for k, v in by_year.items()},
+                "replication_sql": replication_sql,
             },
         ))
 

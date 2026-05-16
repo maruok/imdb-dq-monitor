@@ -27,24 +27,28 @@ SQL_TOOL = {
     },
 }
 
-SYSTEM_PROMPT = """You are a data quality analyst investigating a statistical anomaly in IMDB data.
-You have a run_sql tool to query the database.
+SYSTEM_PROMPT = """You are a senior data quality analyst. A monitoring check has been flagged.
+You are given the EXACT result and the EXACT SQL that produced it.
 
-Investigation strategy (follow in order, run one query per step):
-1. Confirm the anomaly: verify the reported numbers with a direct query.
-2. Find outlier cases: check if a small number of extreme records drive the result.
-3. Quantify the outlier impact: re-run the metric excluding those outliers.
-4. Compare to prior year: run the same metric for the previous year to see the change.
-5. Conclude: write your final summary.
+CRITICAL RULES:
+- Do NOT try to reproduce or verify the flagged number — it is correct and you already have it.
+- Do NOT use LIKE or contains searches — the genres and titleType fields use EXACT equality matching.
+- Start immediately with WHY the metric changed, not whether it changed.
 
-IMPORTANT: After at most 5 SQL queries, you MUST stop querying and write your final summary.
+Investigation strategy (5 queries maximum):
+1. Run the replication SQL for the current year AND prior year to see the absolute count change.
+2. Break down by titleType (movie, tvSeries, tvMovie, etc.) — did one type drive the shift?
+3. Find the top titles by vote count with this genre/category — which specific titles are new or growing?
+4. If still unclear: compare the title count and avg votes between current and prior year for this category.
+5. Conclude.
+
 Your final summary must include:
-- What the anomaly is (with specific numbers)
-- The most likely root cause
-- Whether it is a data quality issue or a legitimate data phenomenon
-- Exactly 3 verification queries, each on its own line starting with "VERIFY:"
+- The specific numbers: how many titles, how the count changed vs prior year
+- The most likely driver (specific title types, new releases, a few high-vote outliers, or a data issue)
+- Whether this is a legitimate trend or a data quality concern
+- Exactly 3 verification queries on their own lines starting with "VERIFY:"
 
-Do not run more than 5 queries."""
+After at most 5 queries you MUST write your final summary."""
 
 
 @dataclass
@@ -103,23 +107,35 @@ def _run_sql(con: duckdb.DuckDBPyConnection, query: str) -> str:
 
 def _build_initial_prompt(check: CheckResult) -> str:
     ctx = check.context
-    hist_summary = ", ".join(
-        f"{y}: {v}{check.unit}"
+    unit = f" {check.unit}" if check.unit else ""
+    hist_summary = "  ".join(
+        f"{y}: {v}{unit}"
         for y, v in sorted(ctx.get("by_year", {}).items())
         if int(y) != ctx.get("current_year")
     )
-    return f"""A data quality check has been flagged. Investigate following the 5-step strategy.
+    replication_sql = ctx.get("replication_sql", "-- replication SQL not available")
+    prior_year = ctx.get("prior_year", ctx.get("current_year", 0) - 1)
 
-Check: {check.name}
-Current period ({ctx.get('current_year')}): {check.current_val}{check.unit}
-Normal range (Tukey fences): {check.fence_low}{check.unit} – {check.fence_high}{check.unit}
-Direction: {check.flag_direction}
+    return f"""A monitoring check is flagged. Your job is to explain WHY — not to verify the number.
 
-Historical values by year: {hist_summary}
+=== CHECK DETAILS ===
+Check name: {check.name}
+Current period ({ctx.get('current_year')}): {check.current_val}{unit}  ← FLAGGED {check.flag_direction}
+Normal range (Tukey IQR fences): {check.fence_low}{unit} – {check.fence_high}{unit}
+Prior year ({prior_year}): {ctx.get('by_year', {}).get(prior_year, 'N/A')}{unit}
 
-Additional context: {ctx}
+Historical trend (oldest → newest):
+{hist_summary}
 
-Begin with Step 1: confirm the anomaly with a direct query."""
+=== EXACT SQL THAT PRODUCED THIS RESULT ===
+Use this SQL as your starting point. Run it for {prior_year} and {ctx.get('current_year')} to see absolute counts.
+DO NOT modify the WHERE clause filters — especially do not use LIKE instead of =.
+
+{replication_sql}
+
+=== YOUR TASK ===
+Start with Step 1: run the replication SQL above to get the absolute title counts for both years.
+Then investigate what drove the change — specific title types, new releases, or a few high-influence records."""
 
 
 def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> Investigation:
