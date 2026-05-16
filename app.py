@@ -242,9 +242,15 @@ html, body { background-color: #f0f3fa !important; }
     color: #b5e550 !important;
     border: none !important;
     font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    padding: 6px 10px !important;
+    border-radius: 20px !important;
+    white-space: nowrap !important;
+    letter-spacing: 0.04em !important;
 }
 .stButton > button[kind="primary"]:hover {
     background: #2a2d55 !important;
+    box-shadow: 0 2px 10px rgba(26,29,53,0.25) !important;
 }
 
 /* ── Expander ── */
@@ -628,7 +634,7 @@ with tab_dashboard:
                 f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
-            if c_action.button("Investigate", key=key):
+            if c_action.button("Investigate", key=key, type="primary", use_container_width=True):
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
