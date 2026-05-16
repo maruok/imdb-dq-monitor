@@ -50,12 +50,10 @@ html, body { background-color: #f0f3fa !important; }
 }
 
 /* ── Sticky tab bar ── */
-/* Break overflow:hidden on every ancestor that might block sticky */
-html, body { overflow: auto !important; }
-.stApp, section[data-testid="stMain"],
-[data-testid="stAppViewContainer"],
-[data-testid="stMainBlockContainer"],
-.stTabs { overflow: visible !important; }
+/* stMain is the culprit — Streamlit sets overflow:hidden there */
+section[data-testid="stMain"]        { overflow: visible !important; }
+[data-testid="stMainBlockContainer"] { overflow: visible !important; }
+.stTabs                              { overflow: visible !important; }
 
 [data-baseweb="tab-list"] {
     position: -webkit-sticky !important;
@@ -265,16 +263,12 @@ html, body { overflow: auto !important; }
     border: 1.5px solid rgba(26,29,53,0.45) !important;
     font-weight: 700 !important;
     font-size: 0.75rem !important;
-    padding: 6px 14px !important;
+    padding: 6px 18px !important;
     border-radius: 20px !important;
     white-space: nowrap !important;
     letter-spacing: 0.04em !important;
     backdrop-filter: blur(4px) !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 5px !important;
-    width: 100% !important;
+    text-align: center !important;
 }
 .stButton > button[kind="primary"]:hover {
     background: #1a1d35 !important;
@@ -653,7 +647,7 @@ with tab_dashboard:
                 f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
-            if c_action.button("🔍 Investigate", key=key, type="primary", use_container_width=True):
+            if c_action.button("▶ Investigate", key=key, type="primary", use_container_width=True):
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
