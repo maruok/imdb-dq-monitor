@@ -21,6 +21,10 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
+/* ── Hide Streamlit chrome ── */
+#MainMenu, header, footer { visibility: hidden; }
+[data-testid="stToolbar"] { display: none; }
+
 /* ── Base ── */
 html, body, [data-testid="stAppViewContainer"], .stApp {
     background-color: #0d0f1a !important;
