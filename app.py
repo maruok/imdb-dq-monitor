@@ -82,18 +82,11 @@ html, body { background-color: #f0f3fa !important; }
     margin-top: -2px;
 }
 
-/* ── Each row: white card ── */
+/* ── Row cards: no default styling — section containers provide colour ── */
 .stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"] {
-    background: #ffffff;
-    border-radius: 10px;
-    border: 1px solid #e2e8f5;
     padding: 2px 14px;
-    margin: 5px 0;
-    box-shadow: 0 2px 8px rgba(26,29,53,0.07);
+    margin: 3px 0;
     transition: box-shadow 0.15s;
-}
-.stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"]:hover {
-    box-shadow: 0 4px 16px rgba(26,29,53,0.13);
 }
 
 /* ── Section containers — three distinct colour zones ── */
@@ -107,7 +100,13 @@ html, body { background-color: #f0f3fa !important; }
     margin-bottom: 14px;
 }
 [data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"] {
-    border-color: #d0b8f0 !important;
+    background: #e8e0f8 !important;
+    border-radius: 10px !important;
+    border: 1px solid #c4a8e8 !important;
+    box-shadow: 0 2px 8px rgba(100,60,180,0.07) !important;
+}
+[data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"]:hover {
+    box-shadow: 0 4px 14px rgba(100,60,180,0.15) !important;
 }
 
 /* Null Rate: lime green */
@@ -119,7 +118,13 @@ html, body { background-color: #f0f3fa !important; }
     margin-bottom: 14px;
 }
 [data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"] {
-    border-color: #b8d870 !important;
+    background: #ddf5c0 !important;
+    border-radius: 10px !important;
+    border: 1px solid #a8d860 !important;
+    box-shadow: 0 2px 8px rgba(80,140,20,0.07) !important;
+}
+[data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"]:hover {
+    box-shadow: 0 4px 14px rgba(80,140,20,0.15) !important;
 }
 
 /* Categorical Distribution: dark navy */
@@ -131,7 +136,13 @@ html, body { background-color: #f0f3fa !important; }
     margin-bottom: 14px;
 }
 [data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) [data-testid="stHorizontalBlock"] {
-    border-color: #a8aed0 !important;
+    background: #dcdff2 !important;
+    border-radius: 10px !important;
+    border: 1px solid #9aa0cc !important;
+    box-shadow: 0 2px 8px rgba(30,40,100,0.07) !important;
+}
+[data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) [data-testid="stHorizontalBlock"]:hover {
+    box-shadow: 0 4px 14px rgba(30,40,100,0.15) !important;
 }
 
 /* ── Section header accent colours ── */
@@ -586,17 +597,6 @@ with tab_dashboard:
         </div>
         """, unsafe_allow_html=True)
 
-    # Download button
-    st.markdown("<div style='margin: 12px 0 4px 0'></div>", unsafe_allow_html=True)
-    dl_col, _ = st.columns([1, 5])
-    filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    dl_col.download_button(
-        label="⬇  Download Report (Excel)",
-        data=build_excel(checks, st.session_state.investigations, current_year, n_hist),
-        file_name=filename,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
     def send_to_playground(q: str):
         st.session_state.sql_query = q
 
@@ -741,10 +741,6 @@ with tab_dashboard:
             h = st.columns([2.4, 2.2, 0.9, 1.6, 0.85, 1.05])
             for col, label in zip(h, ["Check", "12-period trend", "Current", "Normal range", "Status", "Action"]):
                 col.markdown(f"<div class='col-header'>{label}</div>", unsafe_allow_html=True)
-            st.markdown(
-                "<div style='height:2px;background:rgba(0,0,0,0.1);border-radius:2px;margin:4px 0 8px 0'></div>",
-                unsafe_allow_html=True,
-            )
             for check in sorted(section_checks, key=lambda c: (not c.flagged, c.name)):
                 render_check_row(check, key_prefix)
 
@@ -755,6 +751,18 @@ with tab_dashboard:
     render_section("Numerical Variables",      numerical,   "num",  "section-mark-num")
     render_section("Null Rate Monitoring",     nulls,       "null", "section-mark-null")
     render_section("Categorical Distribution", categorical, "cat",  "section-mark-cat")
+
+    # Download report — bottom of dashboard, toned down
+    st.markdown("<div style='margin:24px 0 4px 0'></div>", unsafe_allow_html=True)
+    _, dl_col, _ = st.columns([3, 2, 3])
+    filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    dl_col.download_button(
+        label="⬇  Download Report (Excel)",
+        data=build_excel(checks, st.session_state.investigations, current_year, n_hist),
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
 
 
 # ===========================================================================
