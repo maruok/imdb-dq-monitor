@@ -68,10 +68,32 @@ html, body { background-color: #f0f3fa !important; }
     font-size: 0.85rem;
 }
 .stTabs [aria-selected="true"] {
-    background: #ffffff !important;
+    background: #c8d4ea !important;
     color: #1a1d35 !important;
-    border: 2px solid #dde2f0 !important;
-    border-bottom: 2px solid #ffffff !important;
+    border: 2px solid #b8c8e0 !important;
+    border-bottom: 2px solid #c8d4ea !important;
+}
+
+/* ── Tab panel: medium slate background for the check area ── */
+.stTabs [data-baseweb="tab-panel"] {
+    background: #c8d4ea;
+    border-radius: 0 12px 12px 12px;
+    padding: 20px 18px 28px 18px;
+    margin-top: -2px;
+}
+
+/* ── Each row: white card floating on the slate background ── */
+.stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"] {
+    background: #ffffff;
+    border-radius: 10px;
+    border: 1px solid #e2e8f5;
+    padding: 2px 14px;
+    margin: 5px 0;
+    box-shadow: 0 2px 8px rgba(26,29,53,0.07);
+    transition: box-shadow 0.15s;
+}
+.stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"]:hover {
+    box-shadow: 0 4px 16px rgba(26,29,53,0.13);
 }
 
 /* ── Vertical centering for check rows ── */
@@ -111,26 +133,28 @@ html, body { background-color: #f0f3fa !important; }
 .color-navy   { color: #1a1d35; }
 .color-muted  { color: #6b7094; }
 
-/* ── Section headers ── */
+/* ── Section headers — on slate background ── */
 .section-header {
     font-size: 0.72rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #4a4f78;
-    margin: 32px 0 4px 0;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #d8ddf0;
+    color: #2a3560;
+    margin: 28px 0 4px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #a8b8d4;
 }
 
-/* ── Column header labels ── */
+/* ── Column header labels — on slate background ── */
 .col-header {
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #6b7094;
+    color: #3a4870;
 }
+
+/* ── Row separator — hidden, cards provide spacing ── */
 
 /* ── Check row text ── */
 .check-name        { font-size: 0.88rem; font-weight: 600; color: #1a1d35; }
@@ -217,8 +241,8 @@ code { color: #3a3f6e !important; }
 [data-testid="stMetricValue"] { color: #1a1d35 !important; }
 [data-testid="stMetricLabel"] { color: #9399b8 !important; font-size: 0.72rem !important; }
 
-/* ── Row separator ── */
-.row-sep { border: none; border-top: 1px solid #edf0f9; margin: 2px 0; }
+/* ── Row separator — hidden, card spacing handles this ── */
+.row-sep { display: none; }
 
 /* ── Spinner / info / success / warning ── */
 .stSpinner { color: #1a1d35 !important; }
@@ -624,7 +648,10 @@ with tab_dashboard:
         h = st.columns([2.4, 2.2, 0.9, 1.6, 0.85, 1.05])
         for col, label in zip(h, ["Check", "12-period trend", "Current", "Normal range", "Status", "Action"]):
             col.markdown(f"<div class='col-header'>{label}</div>", unsafe_allow_html=True)
-        st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='height:2px;background:#a8b8d4;border-radius:2px;margin:4px 0 8px 0'></div>",
+            unsafe_allow_html=True,
+        )
         for check in sorted(section_checks, key=lambda c: (not c.flagged, c.name)):
             render_check_row(check, key_prefix)
 
