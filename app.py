@@ -82,20 +82,62 @@ html, body { background-color: #f0f3fa !important; }
     margin-top: -2px;
 }
 
-/* ── Each row: slate card — the mid-level accent ── */
+/* ── Each row: white card ── */
 .stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"] {
-    background: #c8d4ea;
+    background: #ffffff;
     border-radius: 10px;
-    border: 1px solid #b4c4de;
+    border: 1px solid #e2e8f5;
     padding: 2px 14px;
     margin: 5px 0;
     box-shadow: 0 2px 8px rgba(26,29,53,0.07);
     transition: box-shadow 0.15s;
 }
 .stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"]:hover {
-    background: #bccde6;
     box-shadow: 0 4px 16px rgba(26,29,53,0.13);
 }
+
+/* ── Section containers — three distinct colour zones ── */
+
+/* Numerical Variables: lavender/purple */
+[data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) {
+    background: #f0ebfc;
+    border-radius: 14px;
+    border-left: 4px solid #9070d0;
+    padding: 12px 16px 16px 16px;
+    margin-bottom: 14px;
+}
+[data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"] {
+    border-color: #d0b8f0 !important;
+}
+
+/* Null Rate: lime green */
+[data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) {
+    background: #edf8e0;
+    border-radius: 14px;
+    border-left: 4px solid #70a820;
+    padding: 12px 16px 16px 16px;
+    margin-bottom: 14px;
+}
+[data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"] {
+    border-color: #b8d870 !important;
+}
+
+/* Categorical Distribution: dark navy */
+[data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) {
+    background: #e9eaf5;
+    border-radius: 14px;
+    border-left: 4px solid #2a3268;
+    padding: 12px 16px 16px 16px;
+    margin-bottom: 14px;
+}
+[data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) [data-testid="stHorizontalBlock"] {
+    border-color: #a8aed0 !important;
+}
+
+/* ── Section header accent colours ── */
+.section-header-num  { border-bottom-color: #9070d0 !important; color: #4a2090 !important; }
+.section-header-null { border-bottom-color: #70a820 !important; color: #306010 !important; }
+.section-header-cat  { border-bottom-color: #2a3268 !important; color: #1a2050 !important; }
 
 /* ── Vertical centering for check rows ── */
 [data-testid="stHorizontalBlock"] {
@@ -681,27 +723,32 @@ with tab_dashboard:
 
         st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
 
-    def render_section(title: str, section_checks: list[CheckResult], key_prefix: str):
+    def render_section(title: str, section_checks: list[CheckResult], key_prefix: str, section_class: str):
         if not section_checks:
             return
-        st.markdown(f"<div class='section-header'>{title}</div>", unsafe_allow_html=True)
-        h = st.columns([2.4, 2.2, 0.9, 1.6, 0.85, 1.05])
-        for col, label in zip(h, ["Check", "12-period trend", "Current", "Normal range", "Status", "Action"]):
-            col.markdown(f"<div class='col-header'>{label}</div>", unsafe_allow_html=True)
-        st.markdown(
-            "<div style='height:2px;background:#a8b8d4;border-radius:2px;margin:4px 0 8px 0'></div>",
-            unsafe_allow_html=True,
-        )
-        for check in sorted(section_checks, key=lambda c: (not c.flagged, c.name)):
-            render_check_row(check, key_prefix)
+        with st.container():
+            st.markdown(f"<div class='section-mark {section_class}'></div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='section-header section-header-{key_prefix}'>{title}</div>",
+                unsafe_allow_html=True,
+            )
+            h = st.columns([2.4, 2.2, 0.9, 1.6, 0.85, 1.05])
+            for col, label in zip(h, ["Check", "12-period trend", "Current", "Normal range", "Status", "Action"]):
+                col.markdown(f"<div class='col-header'>{label}</div>", unsafe_allow_html=True)
+            st.markdown(
+                "<div style='height:2px;background:rgba(0,0,0,0.1);border-radius:2px;margin:4px 0 8px 0'></div>",
+                unsafe_allow_html=True,
+            )
+            for check in sorted(section_checks, key=lambda c: (not c.flagged, c.name)):
+                render_check_row(check, key_prefix)
 
     numerical  = [c for c in checks if c.context.get("check_type") == "numerical"]
     nulls      = [c for c in checks if c.context.get("check_type") == "null_rate"]
     categorical= [c for c in checks if c.context.get("check_type") == "categorical"]
 
-    render_section("Numerical Variables",      numerical,   "num")
-    render_section("Null Rate Monitoring",     nulls,       "null")
-    render_section("Categorical Distribution", categorical, "cat")
+    render_section("Numerical Variables",      numerical,   "num",  "section-mark-num")
+    render_section("Null Rate Monitoring",     nulls,       "null", "section-mark-null")
+    render_section("Categorical Distribution", categorical, "cat",  "section-mark-cat")
 
 
 # ===========================================================================
