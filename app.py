@@ -225,20 +225,22 @@ html, body { background-color: #f0f3fa !important; }
 
 /* ── Buttons ── */
 .stButton > button {
-    background: #ffffff !important;
+    background: rgba(255,255,255,0.82) !important;
     color: #1a1d35 !important;
-    border: 1.5px solid #dde2f0 !important;
-    border-radius: 8px !important;
-    font-size: 0.78rem !important;
+    border: 1.5px solid rgba(26,29,53,0.28) !important;
+    border-radius: 20px !important;
+    font-size: 0.7rem !important;
     font-weight: 600 !important;
-    padding: 5px 14px !important;
+    padding: 4px 12px !important;
+    white-space: nowrap !important;
     box-shadow: 0 1px 4px rgba(26,29,53,0.07) !important;
     transition: all 0.15s !important;
 }
 .stButton > button:hover {
-    border-color: #8bc34a !important;
-    color: #4a7c0a !important;
-    box-shadow: 0 2px 8px rgba(139,195,74,0.2) !important;
+    background: #1a1d35 !important;
+    color: #ffffff !important;
+    border-color: #1a1d35 !important;
+    box-shadow: 0 2px 8px rgba(26,29,53,0.18) !important;
 }
 /* primary buttons (Send → in follow-up form) */
 [data-testid="stBaseButton-primary"],
