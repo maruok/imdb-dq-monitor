@@ -49,12 +49,16 @@ html, body { background-color: #f0f3fa !important; }
     color: #e8eaf0 !important;
 }
 
-/* ── Sticky tab bar — break any overflow:hidden in parent chain ── */
+/* ── Sticky tab bar ── */
+/* Break overflow:hidden on every ancestor that might block sticky */
+html, body { overflow: auto !important; }
+.stApp, section[data-testid="stMain"],
+[data-testid="stAppViewContainer"],
+[data-testid="stMainBlockContainer"],
 .stTabs { overflow: visible !important; }
-[data-testid="stMainBlockContainer"] { overflow: visible !important; }
-[data-testid="stAppViewContainer"]   { overflow: visible !important; }
 
 [data-baseweb="tab-list"] {
+    position: -webkit-sticky !important;
     position: sticky !important;
     top: 0 !important;
     z-index: 9999 !important;
@@ -266,6 +270,11 @@ html, body { background-color: #f0f3fa !important; }
     white-space: nowrap !important;
     letter-spacing: 0.04em !important;
     backdrop-filter: blur(4px) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    width: 100% !important;
 }
 .stButton > button[kind="primary"]:hover {
     background: #1a1d35 !important;
@@ -644,7 +653,7 @@ with tab_dashboard:
                 f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
-            if c_action.button("Investigate", key=key, type="primary", use_container_width=True):
+            if c_action.button("🔍 Investigate", key=key, type="primary", use_container_width=True):
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
