@@ -17,7 +17,7 @@ st.set_page_config(
 )
 
 # ---------------------------------------------------------------------------
-# Global CSS — dark theme inspired by the design reference
+# Global CSS
 # ---------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -25,64 +25,64 @@ st.markdown("""
 #MainMenu, header, footer { visibility: hidden; }
 [data-testid="stToolbar"] { display: none; }
 
-/* ── Base ── */
-html, body, [data-testid="stAppViewContainer"], .stApp {
-    background-color: #0d0f1a !important;
-    color: #e8eaf0 !important;
-}
+/* ── App shell: light main content, dark sidebar ── */
+html, body { background-color: #f0f3fa !important; }
+.stApp { background-color: #f0f3fa !important; }
+[data-testid="stAppViewContainer"] { background-color: #f0f3fa !important; }
+[data-testid="stMain"] { background-color: #f0f3fa !important; }
 
-/* ── Sidebar ── */
+/* ── Sidebar stays dark ── */
 [data-testid="stSidebar"] {
     background-color: #13152a !important;
     border-right: 1px solid #1e2140;
 }
 [data-testid="stSidebar"] * { color: #c8cadc !important; }
-[data-testid="stSidebar"] .stSelectbox label,
-[data-testid="stSidebar"] .stSlider label { color: #7b7fa8 !important; font-size: 0.78rem !important; }
+[data-testid="stSidebar"] label { color: #7b7fa8 !important; font-size: 0.75rem !important; }
+[data-testid="stSidebar"] .stSelectbox > div > div {
+    background: #1a1d35 !important;
+    border-color: #2a2d4a !important;
+    color: #e8eaf0 !important;
+}
 
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
     background: transparent;
-    border-bottom: 1px solid #1e2140;
-    gap: 8px;
+    border-bottom: 2px solid #dde2f0;
+    gap: 4px;
 }
 .stTabs [data-baseweb="tab"] {
-    background: #13152a;
+    background: transparent;
     border-radius: 8px 8px 0 0;
     color: #7b7fa8 !important;
-    padding: 8px 20px;
-    border: 1px solid #1e2140;
-    border-bottom: none;
+    padding: 8px 22px;
+    font-weight: 600;
+    font-size: 0.85rem;
 }
 .stTabs [aria-selected="true"] {
-    background: #1a1d35 !important;
-    color: #b5e550 !important;
-    border-color: #b5e550 !important;
+    background: #ffffff !important;
+    color: #1a1d35 !important;
+    border: 2px solid #dde2f0 !important;
+    border-bottom: 2px solid #ffffff !important;
 }
 
-/* ── Cards ── */
-.dq-card {
-    background: #13152a;
-    border: 1px solid #1e2140;
-    border-radius: 16px;
-    padding: 20px 24px;
-    margin-bottom: 12px;
+/* ── Vertical centering for check rows ── */
+[data-testid="stHorizontalBlock"] {
+    align-items: center !important;
 }
-.dq-card-accent {
-    background: linear-gradient(135deg, #1a2a0a 0%, #13152a 60%);
-    border: 1px solid #3a5c10;
-    border-radius: 16px;
-    padding: 20px 24px;
-    margin-bottom: 12px;
+[data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
 }
 
 /* ── Summary metric cards ── */
 .summary-card {
-    background: #13152a;
-    border: 1px solid #1e2140;
+    background: #ffffff;
     border-radius: 16px;
-    padding: 20px;
+    padding: 22px 20px;
     text-align: center;
+    box-shadow: 0 2px 12px rgba(26,29,53,0.07);
+    border: 1px solid #e8ecf8;
 }
 .summary-number {
     font-size: 2.8rem;
@@ -91,128 +91,132 @@ html, body, [data-testid="stAppViewContainer"], .stApp {
     margin: 8px 0 4px 0;
 }
 .summary-label {
-    font-size: 0.78rem;
-    color: #7b7fa8;
+    font-size: 0.72rem;
+    color: #9399b8;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
+    font-weight: 600;
 }
-.color-green  { color: #b5e550; }
-.color-red    { color: #ff4b6e; }
-.color-white  { color: #e8eaf0; }
-.color-muted  { color: #7b7fa8; }
+.color-green  { color: #4caf50; }
+.color-red    { color: #e53935; }
+.color-navy   { color: #1a1d35; }
+.color-muted  { color: #9399b8; }
 
 /* ── Section headers ── */
 .section-header {
-    font-size: 0.75rem;
-    font-weight: 700;
+    font-size: 0.72rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: #7b7fa8;
-    margin: 28px 0 12px 0;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #1e2140;
+    letter-spacing: 0.14em;
+    color: #9399b8;
+    margin: 32px 0 4px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e4e8f5;
 }
 
-/* ── Check row ── */
-.check-name { font-size: 0.9rem; font-weight: 500; color: #c8cadc; }
-.check-name-flagged { font-size: 0.9rem; font-weight: 700; color: #e8eaf0; }
-.check-value { font-size: 1.1rem; font-weight: 700; }
-.check-range { font-size: 0.78rem; color: #7b7fa8; }
+/* ── Column header labels ── */
+.col-header {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #b0b5d0;
+}
+
+/* ── Check row text ── */
+.check-name        { font-size: 0.88rem; font-weight: 500; color: #3a3f6e; }
+.check-name-flagged{ font-size: 0.88rem; font-weight: 700; color: #1a1d35; }
+.check-value-ok    { font-size: 1.05rem; font-weight: 700; color: #4caf50; }
+.check-value-flag  { font-size: 1.05rem; font-weight: 700; color: #e53935; }
+.check-range       { font-size: 0.78rem; color: #9399b8; }
 
 /* ── Status pills ── */
 .pill {
     display: inline-block;
     padding: 4px 14px;
     border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
 }
-.pill-ok {
-    background: rgba(181, 229, 80, 0.12);
-    color: #b5e550;
-    border: 1px solid rgba(181, 229, 80, 0.35);
-}
-.pill-high {
-    background: rgba(255, 75, 110, 0.12);
-    color: #ff4b6e;
-    border: 1px solid rgba(255, 75, 110, 0.35);
-}
-.pill-low {
-    background: rgba(84, 160, 255, 0.12);
-    color: #54a0ff;
-    border: 1px solid rgba(84, 160, 255, 0.35);
-}
+.pill-ok   { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+.pill-high { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+.pill-low  { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
 
-/* ── Investigate button ── */
+/* ── Buttons ── */
 .stButton > button {
-    background: #1a1d35 !important;
-    color: #b5e550 !important;
-    border: 1px solid #b5e550 !important;
+    background: #ffffff !important;
+    color: #1a1d35 !important;
+    border: 1.5px solid #dde2f0 !important;
     border-radius: 8px !important;
     font-size: 0.78rem !important;
     font-weight: 600 !important;
-    padding: 4px 14px !important;
-    transition: all 0.2s;
+    padding: 5px 14px !important;
+    box-shadow: 0 1px 4px rgba(26,29,53,0.07) !important;
+    transition: all 0.15s !important;
 }
 .stButton > button:hover {
-    background: #b5e550 !important;
-    color: #0d0f1a !important;
+    border-color: #8bc34a !important;
+    color: #4a7c0a !important;
+    box-shadow: 0 2px 8px rgba(139,195,74,0.2) !important;
 }
-
-/* Primary button (Run query) */
 .stButton > button[kind="primary"] {
-    background: #b5e550 !important;
-    color: #0d0f1a !important;
+    background: #1a1d35 !important;
+    color: #b5e550 !important;
     border: none !important;
     font-weight: 700 !important;
 }
 .stButton > button[kind="primary"]:hover {
-    background: #c8f060 !important;
+    background: #2a2d55 !important;
 }
 
 /* ── Expander ── */
 [data-testid="stExpander"] {
-    background: #0d0f1a !important;
-    border: 1px solid #1e2140 !important;
+    background: #ffffff !important;
+    border: 1px solid #e4e8f5 !important;
     border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(26,29,53,0.05) !important;
 }
+[data-testid="stExpander"] summary { color: #1a1d35 !important; font-weight: 600 !important; }
 
 /* ── Code blocks ── */
 .stCodeBlock, pre {
-    background: #090b17 !important;
-    border: 1px solid #1e2140 !important;
+    background: #f7f8fd !important;
+    border: 1px solid #e4e8f5 !important;
     border-radius: 8px !important;
 }
+code { color: #3a3f6e !important; }
 
 /* ── Text area ── */
 .stTextArea textarea {
-    background: #090b17 !important;
-    color: #c8cadc !important;
-    border: 1px solid #1e2140 !important;
+    background: #f7f8fd !important;
+    color: #1a1d35 !important;
+    border: 1.5px solid #dde2f0 !important;
     border-radius: 8px !important;
     font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+    font-size: 0.85rem !important;
 }
 
-/* ── Metrics ── */
+/* ── Metrics (token cost) ── */
 [data-testid="metric-container"] {
-    background: #13152a;
-    border: 1px solid #1e2140;
-    border-radius: 12px;
-    padding: 12px 16px;
+    background: #f7f8fd;
+    border: 1px solid #e4e8f5;
+    border-radius: 10px;
+    padding: 10px 14px;
 }
-[data-testid="stMetricValue"] { color: #e8eaf0 !important; }
-[data-testid="stMetricLabel"] { color: #7b7fa8 !important; font-size: 0.75rem !important; }
+[data-testid="stMetricValue"] { color: #1a1d35 !important; }
+[data-testid="stMetricLabel"] { color: #9399b8 !important; font-size: 0.72rem !important; }
 
-/* ── Info/success/warning boxes ── */
-.stInfo, .stSuccess, .stWarning {
-    border-radius: 10px !important;
-    border: none !important;
-}
+/* ── Row separator ── */
+.row-sep { border: none; border-top: 1px solid #edf0f9; margin: 2px 0; }
 
-/* ── Dividers ── */
-hr { border-color: #1e2140 !important; }
+/* ── Spinner / info / success / warning ── */
+.stSpinner { color: #1a1d35 !important; }
+.stInfo    { background: #e3f2fd !important; color: #1565c0 !important; border-radius: 8px !important; }
+.stSuccess { background: #e8f5e9 !important; color: #2e7d32 !important; border-radius: 8px !important; }
+.stWarning { background: #fff8e1 !important; color: #f57f17 !important; border-radius: 8px !important; }
+.stError   { background: #ffebee !important; color: #c62828 !important; border-radius: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -222,24 +226,23 @@ hr { border-color: #1e2140 !important; }
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown("""
-    <div style='padding: 8px 0 24px 0;'>
-        <div style='font-size:1.3rem; font-weight:800; color:#b5e550; letter-spacing:0.04em;'>
+    <div style='padding:8px 0 24px 0'>
+        <div style='font-size:1.25rem;font-weight:800;color:#b5e550;letter-spacing:0.04em'>
             📊 DQ Monitor
         </div>
-        <div style='font-size:0.72rem; color:#7b7fa8; margin-top:2px;'>IMDB Data Quality</div>
+        <div style='font-size:0.7rem;color:#7b7fa8;margin-top:2px'>IMDB Data Quality</div>
     </div>
     """, unsafe_allow_html=True)
 
-    current_year = st.selectbox(
-        "CURRENT PERIOD", options=list(range(2024, 2009, -1)), index=0
-    )
+    current_year = st.selectbox("CURRENT PERIOD", options=list(range(2024, 2009, -1)), index=0)
     n_hist = st.slider("HISTORICAL PERIODS", min_value=6, max_value=15, value=12)
+
     st.markdown("---")
     st.markdown("""
-    <div style='font-size:0.72rem; color:#7b7fa8; line-height:1.6;'>
+    <div style='font-size:0.72rem;color:#7b7fa8;line-height:1.7'>
         Flags anomalies using <b style='color:#c8cadc'>Tukey IQR fences</b>.<br>
         Current period vs preceding N years.<br><br>
-        <b style='color:#b5e550'>Click Investigate</b> to launch the AI agent for a flagged check.
+        <b style='color:#b5e550'>Click Investigate</b> to launch the AI agent.
     </div>
     """, unsafe_allow_html=True)
 
@@ -273,7 +276,7 @@ if "sql_query" not in st.session_state:
 
 
 # ---------------------------------------------------------------------------
-# Sparkline chart for a check row
+# Sparkline
 # ---------------------------------------------------------------------------
 def make_sparkline(check: CheckResult) -> go.Figure:
     by_year = check.context.get("by_year", {})
@@ -282,14 +285,12 @@ def make_sparkline(check: CheckResult) -> go.Figure:
     values = [by_year[y] for y in years]
     labels = [str(y) for y in years]
 
-    bar_colors = []
-    for y in years:
-        if y == curr and check.flagged:
-            bar_colors.append("#ff4b6e")
-        elif y == curr:
-            bar_colors.append("#b5e550")
-        else:
-            bar_colors.append("#2a2d4a")
+    bar_colors = [
+        "#e53935" if (y == curr and check.flagged)
+        else "#4caf50" if y == curr
+        else "#dde2f0"
+        for y in years
+    ]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -298,40 +299,35 @@ def make_sparkline(check: CheckResult) -> go.Figure:
         marker_line_width=0,
         hovertemplate="%{x}: %{y:.2f}<extra></extra>",
     ))
-
-    # Tukey fence lines
-    fig.add_hline(y=check.fence_high, line_dash="dot", line_color="#ff9f43", line_width=1.2,
-                  annotation_text="", annotation_position="right")
+    fig.add_hline(y=check.fence_high, line_dash="dot", line_color="#ff9f43", line_width=1.5)
     if check.fence_low > 0:
-        fig.add_hline(y=check.fence_low, line_dash="dot", line_color="#54a0ff", line_width=1.2)
-
-    # Normal range shading
-    fig.add_hrect(y0=check.fence_low, y1=check.fence_high,
-                  fillcolor="rgba(181,229,80,0.04)", line_width=0)
-
+        fig.add_hline(y=check.fence_low, line_dash="dot", line_color="#54a0ff", line_width=1.5)
+    fig.add_hrect(
+        y0=check.fence_low, y1=check.fence_high,
+        fillcolor="rgba(76,175,80,0.06)", line_width=0,
+    )
     fig.update_layout(
-        height=70,
-        margin=dict(l=0, r=0, t=4, b=0),
+        height=72,
+        margin=dict(l=0, r=0, t=2, b=2),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
         xaxis=dict(visible=False),
         yaxis=dict(visible=False),
-        bargap=0.15,
+        bargap=0.2,
     )
     return fig
 
 
 # ---------------------------------------------------------------------------
-# Main layout
+# Page title
 # ---------------------------------------------------------------------------
 st.markdown(f"""
-<div style='padding: 8px 0 4px 0;'>
-    <div style='font-size:1.6rem; font-weight:800; color:#e8eaf0;'>Data Quality Monitor</div>
-    <div style='font-size:0.8rem; color:#7b7fa8; margin-top:2px;'>
-        Period <b style='color:#b5e550'>{current_year}</b> &nbsp;·&nbsp;
-        Baseline {current_year - n_hist}–{current_year - 1} &nbsp;·&nbsp;
-        IMDB dataset
+<div style='padding:12px 0 8px 0'>
+    <div style='font-size:1.65rem;font-weight:800;color:#1a1d35'>Data Quality Monitor</div>
+    <div style='font-size:0.8rem;color:#9399b8;margin-top:3px'>
+        Period <b style='color:#1a1d35'>{current_year}</b> &nbsp;·&nbsp;
+        Baseline {current_year - n_hist}–{current_year - 1} &nbsp;·&nbsp; IMDB dataset
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -346,16 +342,17 @@ with tab_dashboard:
     with st.spinner("Running checks..."):
         checks = load_checks(current_year, n_hist)
 
-    flagged = [c for c in checks if c.flagged]
+    flagged   = [c for c in checks if c.flagged]
     ok_checks = [c for c in checks if not c.flagged]
+    fail_rate = f"{len(flagged)/len(checks)*100:.0f}%" if checks else "0%"
 
     # Summary banner
     s1, s2, s3, s4 = st.columns(4)
     for col, number, label, cls in [
-        (s1, len(checks), "Checks Run", "color-white"),
-        (s2, len(flagged), "Flagged", "color-red"),
-        (s3, len(ok_checks), "Passed", "color-green"),
-        (s4, f"{len(flagged)/len(checks)*100:.0f}%", "Failure Rate", "color-red" if flagged else "color-green"),
+        (s1, len(checks),   "Checks Run",    "color-navy"),
+        (s2, len(flagged),  "Flagged",       "color-red"),
+        (s3, len(ok_checks),"Passed",        "color-green"),
+        (s4, fail_rate,     "Failure Rate",  "color-red" if flagged else "color-green"),
     ]:
         col.markdown(f"""
         <div class="summary-card">
@@ -364,30 +361,32 @@ with tab_dashboard:
         </div>
         """, unsafe_allow_html=True)
 
-    def send_to_playground(q):
+    def send_to_playground(q: str):
         st.session_state.sql_query = q
 
     def render_check_row(check: CheckResult, section_key: str):
-        key = f"{section_key}_{check.name}"
+        key     = f"{section_key}_{check.name}"
         inv_key = key + "_inv"
 
-        c_name, c_chart, c_val, c_range, c_status, c_action = st.columns([2.4, 2, 1, 1.6, 0.9, 1.1])
+        c_name, c_chart, c_val, c_range, c_status, c_action = st.columns(
+            [2.4, 2.2, 0.9, 1.6, 0.85, 1.05]
+        )
 
         name_cls = "check-name-flagged" if check.flagged else "check-name"
-        c_name.markdown(f"<div class='{name_cls}' style='padding-top:18px'>{check.name}</div>",
-                        unsafe_allow_html=True)
+        c_name.markdown(f"<div class='{name_cls}'>{check.name}</div>", unsafe_allow_html=True)
 
-        c_chart.plotly_chart(make_sparkline(check), use_container_width=True,
-                             config={"displayModeBar": False})
+        c_chart.plotly_chart(
+            make_sparkline(check), use_container_width=True,
+            config={"displayModeBar": False},
+        )
 
-        val_color = "#ff4b6e" if check.flagged else "#b5e550"
+        val_cls = "check-value-flag" if check.flagged else "check-value-ok"
         c_val.markdown(
-            f"<div class='check-value' style='color:{val_color}; padding-top:18px'>"
-            f"{check.current_val}{check.unit}</div>",
+            f"<div class='{val_cls}'>{check.current_val}{check.unit}</div>",
             unsafe_allow_html=True,
         )
         c_range.markdown(
-            f"<div class='check-range' style='padding-top:20px'>"
+            f"<div class='check-range'>"
             f"{check.fence_low}{check.unit} – {check.fence_high}{check.unit}</div>",
             unsafe_allow_html=True,
         )
@@ -395,17 +394,16 @@ with tab_dashboard:
         if check.flagged:
             pill_cls = "pill-high" if check.flag_direction == "HIGH" else "pill-low"
             c_status.markdown(
-                f"<div style='padding-top:18px'><span class='pill {pill_cls}'>"
-                f"{check.flag_direction}</span></div>",
+                f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
             if c_action.button("Investigate", key=key):
-                with st.spinner(f"AI investigating..."):
+                with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
         else:
             c_status.markdown(
-                "<div style='padding-top:18px'><span class='pill pill-ok'>OK</span></div>",
+                "<span class='pill pill-ok'>OK</span>",
                 unsafe_allow_html=True,
             )
 
@@ -413,16 +411,13 @@ with tab_dashboard:
         if inv_key in st.session_state.investigations:
             inv = st.session_state.investigations[inv_key]
             with st.expander(f"Investigation: {check.name}", expanded=True):
-                # Token cost banner
                 t1, t2, t3, t4 = st.columns(4)
-                t1.metric("Input tokens", f"{inv.input_tokens:,}")
+                t1.metric("Input tokens",  f"{inv.input_tokens:,}")
                 t2.metric("Output tokens", f"{inv.output_tokens:,}")
-                t3.metric("Total tokens", f"{inv.total_tokens:,}")
-                t4.metric("Cost", f"${inv.cost_usd:.4f}")
-
+                t3.metric("Total tokens",  f"{inv.total_tokens:,}")
+                t4.metric("Cost",          f"${inv.cost_usd:.4f}")
                 st.markdown("---")
 
-                # Steps
                 if inv.steps:
                     st.markdown("#### Reasoning trace")
                     for i, step in enumerate(inv.steps, 1):
@@ -433,20 +428,19 @@ with tab_dashboard:
                         sc1.code(step.sql, language="sql")
                         if sc2.button("▶ Run", key=f"{inv_key}_step_{i}"):
                             send_to_playground(step.sql)
-                            st.info("Sent to SQL Playground ↑")
+                            st.info("Sent to SQL Playground — click the tab above.")
                         st.code(step.result)
                     st.markdown("---")
 
-                # Summary
                 st.markdown("#### Summary")
-                lines = inv.summary.split("\n")
-                summary_lines = [l for l in lines if not l.startswith("VERIFY:")]
+                lines        = inv.summary.split("\n")
+                summary_text = "\n".join(l for l in lines if not l.startswith("VERIFY:"))
                 verify_lines = [l[len("VERIFY:"):].strip() for l in lines if l.startswith("VERIFY:")]
 
                 if inv.completed:
-                    st.success("\n".join(summary_lines))
+                    st.success(summary_text)
                 else:
-                    st.warning("\n".join(summary_lines))
+                    st.warning(summary_text)
 
                 if verify_lines:
                     st.markdown("**Verification queries:**")
@@ -455,32 +449,27 @@ with tab_dashboard:
                         vc1.code(q, language="sql")
                         if vc2.button("▶ Run", key=f"{inv_key}_verify_{i}"):
                             send_to_playground(q)
-                            st.info("Sent to SQL Playground ↑")
+                            st.info("Sent to SQL Playground — click the tab above.")
 
-        st.markdown("<hr style='border-color:#1a1d35; margin:4px 0'>", unsafe_allow_html=True)
+        st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
 
     def render_section(title: str, section_checks: list[CheckResult], key_prefix: str):
         if not section_checks:
             return
         st.markdown(f"<div class='section-header'>{title}</div>", unsafe_allow_html=True)
-
-        # Column headers
-        h = st.columns([2.4, 2, 1, 1.6, 0.9, 1.1])
+        h = st.columns([2.4, 2.2, 0.9, 1.6, 0.85, 1.05])
         for col, label in zip(h, ["Check", "12-period trend", "Current", "Normal range", "Status", "Action"]):
-            col.markdown(f"<div style='font-size:0.72rem; color:#7b7fa8; font-weight:600; "
-                         f"text-transform:uppercase; letter-spacing:0.08em;'>{label}</div>",
-                         unsafe_allow_html=True)
-
-        # Flagged first
+            col.markdown(f"<div class='col-header'>{label}</div>", unsafe_allow_html=True)
+        st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
         for check in sorted(section_checks, key=lambda c: (not c.flagged, c.name)):
             render_check_row(check, key_prefix)
 
-    numerical = [c for c in checks if c.context.get("check_type") == "numerical"]
-    nulls = [c for c in checks if c.context.get("check_type") == "null_rate"]
-    categorical = [c for c in checks if c.context.get("check_type") == "categorical"]
+    numerical  = [c for c in checks if c.context.get("check_type") == "numerical"]
+    nulls      = [c for c in checks if c.context.get("check_type") == "null_rate"]
+    categorical= [c for c in checks if c.context.get("check_type") == "categorical"]
 
-    render_section("Numerical Variables", numerical, "num")
-    render_section("Null Rate Monitoring", nulls, "null")
+    render_section("Numerical Variables",      numerical,   "num")
+    render_section("Null Rate Monitoring",     nulls,       "null")
     render_section("Categorical Distribution", categorical, "cat")
 
 
@@ -490,49 +479,53 @@ with tab_dashboard:
 with tab_sql:
     st.markdown("<div class='section-header'>SQL Playground</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div style='font-size:0.8rem; color:#7b7fa8; margin-bottom:16px;'>"
-        "Query the IMDB data directly. Views: <code>basics</code>, <code>ratings</code></div>",
+        "<div style='font-size:0.82rem;color:#9399b8;margin-bottom:16px'>"
+        "Query the IMDB data directly. Available views: "
+        "<code style='background:#e8ecf8;padding:2px 6px;border-radius:4px;color:#3a3f6e'>basics</code> &nbsp;"
+        "<code style='background:#e8ecf8;padding:2px 6px;border-radius:4px;color:#3a3f6e'>ratings</code>"
+        "</div>",
         unsafe_allow_html=True,
     )
 
+    examples = {
+        "Title counts by type and year": (
+            "SELECT b.startYear, b.titleType, COUNT(*) AS cnt\n"
+            "FROM basics b JOIN ratings r USING (tconst)\n"
+            "WHERE b.startYear BETWEEN 2015 AND 2024\n"
+            "GROUP BY b.startYear, b.titleType\n"
+            "ORDER BY b.startYear, cnt DESC"
+        ),
+        "Top 20 highest rated movies (1000+ votes)": (
+            "SELECT b.primaryTitle, b.startYear, r.averageRating, r.numVotes\n"
+            "FROM basics b JOIN ratings r USING (tconst)\n"
+            "WHERE b.titleType = 'movie' AND r.numVotes >= 1000\n"
+            "ORDER BY r.averageRating DESC\n"
+            "LIMIT 20"
+        ),
+        "Null rate for runtimeMinutes by year": (
+            "SELECT b.startYear, COUNT(*) AS total,\n"
+            "       SUM(CASE WHEN b.runtimeMinutes IS NULL THEN 1 ELSE 0 END) AS nulls,\n"
+            "       ROUND(100.0 * SUM(CASE WHEN b.runtimeMinutes IS NULL THEN 1 ELSE 0 END) / COUNT(*), 1) AS null_pct\n"
+            "FROM basics b JOIN ratings r USING (tconst)\n"
+            "WHERE b.titleType = 'movie' AND b.startYear BETWEEN 2012 AND 2024\n"
+            "GROUP BY b.startYear ORDER BY b.startYear"
+        ),
+        "Genre distribution for a year": (
+            "SELECT b.genres, COUNT(*) AS cnt,\n"
+            "       ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 2) AS pct\n"
+            "FROM basics b JOIN ratings r USING (tconst)\n"
+            "WHERE b.startYear = 2024 AND b.genres IS NOT NULL\n"
+            "GROUP BY b.genres ORDER BY cnt DESC LIMIT 20"
+        ),
+    }
+
     with st.expander("Example queries"):
-        examples = {
-            "Title counts by type and year": (
-                "SELECT b.startYear, b.titleType, COUNT(*) AS cnt\n"
-                "FROM basics b JOIN ratings r USING (tconst)\n"
-                "WHERE b.startYear BETWEEN 2015 AND 2024\n"
-                "GROUP BY b.startYear, b.titleType\n"
-                "ORDER BY b.startYear, cnt DESC"
-            ),
-            "Top 20 highest rated movies (1000+ votes)": (
-                "SELECT b.primaryTitle, b.startYear, r.averageRating, r.numVotes\n"
-                "FROM basics b JOIN ratings r USING (tconst)\n"
-                "WHERE b.titleType = 'movie' AND r.numVotes >= 1000\n"
-                "ORDER BY r.averageRating DESC\n"
-                "LIMIT 20"
-            ),
-            "Null rate for runtimeMinutes by year": (
-                "SELECT b.startYear,\n"
-                "       COUNT(*) AS total,\n"
-                "       SUM(CASE WHEN b.runtimeMinutes IS NULL THEN 1 ELSE 0 END) AS nulls,\n"
-                "       ROUND(100.0 * SUM(CASE WHEN b.runtimeMinutes IS NULL THEN 1 ELSE 0 END) / COUNT(*), 1) AS null_pct\n"
-                "FROM basics b JOIN ratings r USING (tconst)\n"
-                "WHERE b.titleType = 'movie' AND b.startYear BETWEEN 2012 AND 2024\n"
-                "GROUP BY b.startYear ORDER BY b.startYear"
-            ),
-            "Genre distribution for a specific year": (
-                "SELECT b.genres, COUNT(*) AS cnt,\n"
-                "       ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (), 2) AS pct\n"
-                "FROM basics b JOIN ratings r USING (tconst)\n"
-                "WHERE b.startYear = 2024 AND b.genres IS NOT NULL\n"
-                "GROUP BY b.genres ORDER BY cnt DESC\n"
-                "LIMIT 20"
-            ),
-        }
         for label, sql in examples.items():
             ec1, ec2 = st.columns([5, 1])
-            ec1.markdown(f"<div style='font-size:0.85rem; font-weight:600; color:#c8cadc; "
-                         f"padding:6px 0'>{label}</div>", unsafe_allow_html=True)
+            ec1.markdown(
+                f"<div style='font-size:0.85rem;font-weight:600;color:#3a3f6e;padding:6px 0'>{label}</div>",
+                unsafe_allow_html=True,
+            )
             if ec2.button("Use", key=f"ex_{label}"):
                 st.session_state.sql_query = sql
                 st.rerun()
@@ -547,17 +540,16 @@ with tab_sql:
         st.rerun()
 
     if run_clicked and query.strip():
-        con = get_con()
         try:
-            cursor = con.execute(query)
-            rows = cursor.fetchall()
-            cols_names = [desc[0] for desc in cursor.description]
+            cursor = get_con().execute(query)
+            rows   = cursor.fetchall()
+            cols_n = [desc[0] for desc in cursor.description]
             if not rows:
                 st.info("Query returned no rows.")
             else:
-                data = {cols_names[i]: [r[i] for r in rows] for i in range(len(cols_names))}
+                data = {cols_n[i]: [r[i] for r in rows] for i in range(len(cols_n))}
                 st.markdown(
-                    f"<div style='font-size:0.78rem; color:#b5e550; margin:8px 0'>"
+                    f"<div style='font-size:0.78rem;color:#4caf50;margin:8px 0'>"
                     f"✓ {len(rows)} row(s) returned</div>",
                     unsafe_allow_html=True,
                 )
