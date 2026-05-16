@@ -32,7 +32,8 @@ You are given the EXACT result and the EXACT SQL that produced it.
 
 CRITICAL RULES:
 - Do NOT try to reproduce or verify the flagged number — it is correct and you already have it.
-- Do NOT use LIKE or contains searches — the genres and titleType fields use EXACT equality matching.
+- Always start your first query using the EXACT same filters as the replication SQL provided — this ensures you are looking at the same dataset the check was built on.
+- After establishing that baseline, you are free to use any additional filtering (LIKE, contains, different groupings, subsets) if it helps explain the root cause.
 - Start immediately with WHY the metric changed, not whether it changed.
 
 Investigation strategy (5 queries maximum):
