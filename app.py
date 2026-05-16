@@ -3,11 +3,16 @@ IMDB Data Quality Dashboard
 Run: streamlit run app.py
 """
 
+import io
+import datetime
 import streamlit as st
 import plotly.graph_objects as go
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from data_loader import ensure_data
 from checks import get_connection, run_all_checks, CheckResult
-from investigator import investigate
+from investigator import investigate, Investigation
 
 st.set_page_config(
     page_title="IMDB Data Quality Monitor",
@@ -44,11 +49,15 @@ html, body { background-color: #f0f3fa !important; }
     color: #e8eaf0 !important;
 }
 
-/* ── Tabs ── */
+/* ── Tabs — sticky so they stay visible while scrolling ── */
 .stTabs [data-baseweb="tab-list"] {
-    background: transparent;
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: #f0f3fa;
     border-bottom: 2px solid #dde2f0;
     gap: 4px;
+    padding-top: 6px;
 }
 .stTabs [data-baseweb="tab"] {
     background: transparent;
@@ -320,6 +329,149 @@ def make_sparkline(check: CheckResult) -> go.Figure:
 
 
 # ---------------------------------------------------------------------------
+# Excel export
+# ---------------------------------------------------------------------------
+def build_excel(
+    checks: list,
+    investigations: dict,
+    current_year: int,
+    n_hist: int,
+) -> bytes:
+    wb = openpyxl.Workbook()
+
+    # ── Styles ──────────────────────────────────────────────────────────────
+    hdr_fill   = PatternFill("solid", fgColor="1A1D35")
+    flag_fill  = PatternFill("solid", fgColor="FFEBEE")
+    ok_fill    = PatternFill("solid", fgColor="E8F5E9")
+    grey_fill  = PatternFill("solid", fgColor="F7F8FD")
+    hdr_font   = Font(bold=True, color="FFFFFF", size=10)
+    flag_font  = Font(bold=True, color="C62828", size=10)
+    ok_font    = Font(bold=True, color="2E7D32", size=10)
+    body_font  = Font(size=10)
+    title_font = Font(bold=True, size=13, color="1A1D35")
+    thin       = Side(style="thin", color="D8DDF0")
+    border     = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center     = Alignment(horizontal="center", vertical="center")
+    wrap       = Alignment(wrap_text=True, vertical="top")
+
+    def set_col_widths(ws, widths):
+        for i, w in enumerate(widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+    def hdr_row(ws, row, values):
+        for c, v in enumerate(values, 1):
+            cell = ws.cell(row=row, column=c, value=v)
+            cell.font = hdr_font
+            cell.fill = hdr_fill
+            cell.alignment = center
+            cell.border = border
+
+    # ── Sheet 1: Summary ────────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "DQ Summary"
+
+    ws1["A1"] = "IMDB Data Quality Report"
+    ws1["A1"].font = title_font
+    ws1["A2"] = (
+        f"Period: {current_year}  |  Baseline: {current_year - n_hist}–{current_year - 1}"
+        f"  |  Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    )
+    ws1["A2"].font = Font(size=9, color="6B7094")
+    ws1.row_dimensions[1].height = 22
+    ws1.merge_cells("A1:G1")
+    ws1.merge_cells("A2:G2")
+
+    headers = ["Check", "Type", "Current Value", "Normal Range (Low)", "Normal Range (High)", "Status", "Direction"]
+    hdr_row(ws1, 4, headers)
+
+    type_labels = {"numerical": "Numerical", "null_rate": "Null Rate", "categorical": "Categorical"}
+    for r, check in enumerate(checks, 5):
+        ws1.row_dimensions[r].height = 18
+        unit = f" {check.unit}" if check.unit else ""
+        row_data = [
+            check.name,
+            type_labels.get(check.context.get("check_type", ""), ""),
+            f"{check.current_val}{unit}",
+            f"{check.fence_low}{unit}",
+            f"{check.fence_high}{unit}",
+            "FLAGGED" if check.flagged else "OK",
+            check.flag_direction if check.flagged else "",
+        ]
+        fill = flag_fill if check.flagged else (grey_fill if r % 2 == 0 else PatternFill())
+        for c, v in enumerate(row_data, 1):
+            cell = ws1.cell(row=r, column=c, value=v)
+            cell.font = flag_font if (check.flagged and c == 6) else (ok_font if c == 6 else body_font)
+            cell.fill = fill
+            cell.border = border
+            cell.alignment = center if c > 1 else Alignment(vertical="center")
+
+    set_col_widths(ws1, [38, 14, 14, 18, 18, 10, 10])
+
+    # ── Sheet 2: Investigations ──────────────────────────────────────────────
+    ws2 = wb.create_sheet("Investigations")
+    ws2["A1"] = "AI Investigation Results"
+    ws2["A1"].font = title_font
+    ws2.merge_cells("A1:F1")
+    ws2.row_dimensions[1].height = 22
+
+    hdr_row(ws2, 3, ["Check", "Input Tokens", "Output Tokens", "Cost (USD)", "Completed", "Summary"])
+
+    row_num = 4
+    inv_key_map = {
+        k.replace("num_", "").replace("null_", "").replace("cat_", "").replace("_inv", ""): v
+        for k, v in investigations.items()
+    }
+
+    for check in checks:
+        # Find the matching investigation by check name
+        inv_key = next(
+            (k for k in investigations if check.name in k and k.endswith("_inv")), None
+        )
+        if not inv_key:
+            continue
+        inv: Investigation = investigations[inv_key]
+
+        ws2.row_dimensions[row_num].height = 15
+        summary_clean = "\n".join(
+            l for l in inv.summary.split("\n") if not l.startswith("VERIFY:")
+        )
+        row_data = [
+            check.name,
+            inv.input_tokens,
+            inv.output_tokens,
+            f"${inv.cost_usd:.4f}",
+            "Yes" if inv.completed else "No",
+            summary_clean,
+        ]
+        for c, v in enumerate(row_data, 1):
+            cell = ws2.cell(row=row_num, column=c, value=v)
+            cell.font = body_font
+            cell.border = border
+            cell.alignment = wrap if c == 6 else Alignment(vertical="top")
+            if row_num % 2 == 0:
+                cell.fill = grey_fill
+        ws2.row_dimensions[row_num].height = max(
+            60, min(15 * (summary_clean.count("\n") + 1), 200)
+        )
+        row_num += 1
+
+        # SQL steps sub-rows
+        for i, step in enumerate(inv.steps, 1):
+            ws2.cell(row=row_num, column=1, value=f"  Step {i} SQL").font = Font(size=9, italic=True, color="6B7094")
+            cell = ws2.cell(row=row_num, column=6, value=step.sql)
+            cell.font = Font(name="Courier New", size=9, color="3A3F6E")
+            cell.alignment = wrap
+            ws2.row_dimensions[row_num].height = 30
+            row_num += 1
+
+    set_col_widths(ws2, [38, 13, 13, 12, 10, 70])
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
 # Page title
 # ---------------------------------------------------------------------------
 st.markdown(f"""
@@ -360,6 +512,17 @@ with tab_dashboard:
             <div class="summary-number {cls}">{number}</div>
         </div>
         """, unsafe_allow_html=True)
+
+    # Download button
+    st.markdown("<div style='margin: 12px 0 4px 0'></div>", unsafe_allow_html=True)
+    dl_col, _ = st.columns([1, 5])
+    filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    dl_col.download_button(
+        label="⬇  Download Report (Excel)",
+        data=build_excel(checks, st.session_state.investigations, current_year, n_hist),
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
     def send_to_playground(q: str):
         st.session_state.sql_query = q
