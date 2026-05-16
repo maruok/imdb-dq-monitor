@@ -104,13 +104,14 @@ html, body { background-color: #f0f3fa !important; }
     margin-bottom: 14px;
 }
 [data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"] {
-    background: #e8e0f8 !important;
-    border-radius: 10px !important;
-    border: 1px solid #c4a8e8 !important;
-    box-shadow: 0 2px 8px rgba(100,60,180,0.07) !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(144,112,208,0.18) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
-[data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"]:hover {
-    box-shadow: 0 4px 14px rgba(100,60,180,0.15) !important;
+[data-testid="stVerticalBlock"]:has(.section-mark-num):not(:has(.section-mark-null)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none !important;
 }
 
 /* Null Rate: lime green */
@@ -122,13 +123,14 @@ html, body { background-color: #f0f3fa !important; }
     margin-bottom: 14px;
 }
 [data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"] {
-    background: #ddf5c0 !important;
-    border-radius: 10px !important;
-    border: 1px solid #a8d860 !important;
-    box-shadow: 0 2px 8px rgba(80,140,20,0.07) !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(112,168,32,0.18) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
-[data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"]:hover {
-    box-shadow: 0 4px 14px rgba(80,140,20,0.15) !important;
+[data-testid="stVerticalBlock"]:has(.section-mark-null):not(:has(.section-mark-num)):not(:has(.section-mark-cat)) [data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none !important;
 }
 
 /* Categorical Distribution: dark navy */
@@ -140,13 +142,14 @@ html, body { background-color: #f0f3fa !important; }
     margin-bottom: 14px;
 }
 [data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) [data-testid="stHorizontalBlock"] {
-    background: #dcdff2 !important;
-    border-radius: 10px !important;
-    border: 1px solid #9aa0cc !important;
-    box-shadow: 0 2px 8px rgba(30,40,100,0.07) !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(42,50,104,0.15) !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
 }
-[data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) [data-testid="stHorizontalBlock"]:hover {
-    box-shadow: 0 4px 14px rgba(30,40,100,0.15) !important;
+[data-testid="stVerticalBlock"]:has(.section-mark-cat):not(:has(.section-mark-num)):not(:has(.section-mark-null)) [data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none !important;
 }
 
 /* ── Section header accent colours ── */
