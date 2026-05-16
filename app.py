@@ -71,16 +71,8 @@ html, body { background-color: #f0f3fa !important; }
     border-bottom: 2px solid #f0f3fa !important;
 }
 
-/* ── Tab panel: light background, same as page ── */
-.stTabs [data-baseweb="tab-panel"] {
-    background: #f0f3fa;
-    border-radius: 0 12px 12px 12px;
-    padding: 20px 18px 28px 18px;
-    margin-top: -2px;
-}
-
-/* ── Row cards: no default styling — section containers provide colour ── */
-.stTabs [data-baseweb="tab-panel"] [data-testid="stHorizontalBlock"] {
+/* ── Row cards: base spacing ── */
+[data-testid="stHorizontalBlock"] {
     padding: 2px 14px;
     margin: 3px 0;
     transition: box-shadow 0.15s;
@@ -343,6 +335,14 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
+    st.markdown("---")
+    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Navigate</div>", unsafe_allow_html=True)
+    page = st.radio(
+        "page",
+        ["📋  Dashboard", "🔍  SQL Playground"],
+        label_visibility="collapsed",
+    )
+
 
 # ---------------------------------------------------------------------------
 # Shared resources
@@ -572,13 +572,10 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-tab_dashboard, tab_sql = st.tabs(["📋  Dashboard", "🔍  SQL Playground"])
-
-
 # ===========================================================================
-# TAB 1 — DASHBOARD
+# DASHBOARD
 # ===========================================================================
-with tab_dashboard:
+if page == "📋  Dashboard":
     with st.spinner("Running checks..."):
         checks = load_checks(current_year, n_hist)
 
@@ -638,7 +635,7 @@ with tab_dashboard:
                 f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
-            if c_action.button("▶ Investigate", key=key, type="primary", use_container_width=True):
+            if c_action.button("▶ Investigate", key=key, type="primary"):
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
@@ -770,9 +767,9 @@ with tab_dashboard:
 
 
 # ===========================================================================
-# TAB 2 — SQL PLAYGROUND
+# SQL PLAYGROUND
 # ===========================================================================
-with tab_sql:
+elif page == "🔍  SQL Playground":
     st.markdown("<div class='section-header'>SQL Playground</div>", unsafe_allow_html=True)
     st.markdown(
         "<div style='font-size:0.82rem;color:#9399b8;margin-bottom:16px'>"
