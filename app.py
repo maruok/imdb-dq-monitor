@@ -233,9 +233,13 @@ html, body { background-color: #f0f3fa !important; }
     font-weight: 600 !important;
     padding: 4px 12px !important;
     white-space: nowrap !important;
+    text-align: center !important;
+    justify-content: center !important;
     box-shadow: 0 1px 4px rgba(26,29,53,0.07) !important;
     transition: all 0.15s !important;
 }
+/* Hide Streamlit's auto-injected SVG icon in buttons */
+.stButton > button svg { display: none !important; }
 .stButton > button:hover {
     background: #1a1d35 !important;
     color: #ffffff !important;
@@ -295,6 +299,21 @@ code { color: #3a3f6e !important; }
 /* ── Row separator — hidden, card spacing handles this ── */
 .row-sep { display: none; }
 
+/* ── Sidebar download button ── */
+[data-testid="stSidebar"] .stDownloadButton > button {
+    background: #1a1d35 !important;
+    color: #b5e550 !important;
+    border: 1px solid #2a3060 !important;
+    border-radius: 10px !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    width: 100% !important;
+}
+[data-testid="stSidebar"] .stDownloadButton > button:hover {
+    background: #2a2d55 !important;
+    color: #d4f06a !important;
+}
+
 /* ── Spinner / info / success / warning ── */
 .stSpinner { color: #1a1d35 !important; }
 .stInfo    { background: #e3f2fd !important; color: #1565c0 !important; border-radius: 8px !important; }
@@ -304,6 +323,9 @@ code { color: #3a3f6e !important; }
 </style>
 """, unsafe_allow_html=True)
 
+
+if "sidebar_nav" not in st.session_state:
+    st.session_state["sidebar_nav"] = "📋  Dashboard"
 
 # ---------------------------------------------------------------------------
 # Sidebar
@@ -336,6 +358,7 @@ with st.sidebar:
         "page",
         ["📋  Dashboard", "🔍  SQL Playground"],
         label_visibility="collapsed",
+        key="sidebar_nav",
     )
 
 
@@ -558,7 +581,7 @@ def build_excel(
 # Page title
 # ---------------------------------------------------------------------------
 st.markdown(f"""
-<div style='padding:12px 0 8px 0'>
+<div style='padding:12px 0 4px 0'>
     <div style='font-size:1.65rem;font-weight:800;color:#1a1d35'>Data Quality Monitor</div>
     <div style='font-size:0.8rem;color:#9399b8;margin-top:3px'>
         Period <b style='color:#1a1d35'>{current_year}</b> &nbsp;·&nbsp;
@@ -566,6 +589,30 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+_tnb1, _tnb2, _ = st.columns([1.4, 2.0, 9])
+if _tnb1.button("📋 Dashboard", key="top_nav_db"):
+    st.session_state["sidebar_nav"] = "📋  Dashboard"
+    st.rerun()
+if _tnb2.button("🔍 SQL Playground", key="top_nav_sql"):
+    st.session_state["sidebar_nav"] = "🔍  SQL Playground"
+    st.rerun()
+
+page = st.session_state["sidebar_nav"]
+
+# Sidebar download button — added here so build_excel/load_checks are in scope
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px'>Export</div>", unsafe_allow_html=True)
+    _dl_checks = load_checks(current_year, n_hist)
+    _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    st.download_button(
+        label="⬇  Download Report (Excel)",
+        data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist),
+        file_name=_dl_filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
+    )
 
 # ===========================================================================
 # DASHBOARD
@@ -630,7 +677,7 @@ if page == "📋  Dashboard":
                 f"<span class='pill {pill_cls}'>{check.flag_direction}</span>",
                 unsafe_allow_html=True,
             )
-            if c_action.button("▶ Investigate", key=key):
+            if c_action.button("Investigate", key=key):
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
@@ -748,17 +795,6 @@ if page == "📋  Dashboard":
     render_section("Null Rate Monitoring",     nulls,       "null", "section-mark-null")
     render_section("Categorical Distribution", categorical, "cat",  "section-mark-cat")
 
-    # Download report — bottom of dashboard, toned down
-    st.markdown("<div style='margin:24px 0 4px 0'></div>", unsafe_allow_html=True)
-    _, dl_col, _ = st.columns([3, 2, 3])
-    filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    dl_col.download_button(
-        label="⬇  Download Report (Excel)",
-        data=build_excel(checks, st.session_state.investigations, current_year, n_hist),
-        file_name=filename,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
 
 
 # ===========================================================================
