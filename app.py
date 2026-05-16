@@ -621,8 +621,20 @@ with st.sidebar:
 # DASHBOARD
 # ===========================================================================
 if page == "📋  Dashboard":
-    with st.spinner("Running checks..."):
-        checks = load_checks(current_year, n_hist)
+    _load_ph = st.empty()
+    _load_ph.markdown("""
+    <div style='background:#ffffff;border:1.5px solid #dde2f0;border-radius:14px;
+                padding:48px 24px;text-align:center;margin:24px 0;
+                box-shadow:0 2px 12px rgba(26,29,53,0.07)'>
+        <div style='font-size:2rem;margin-bottom:12px'>⏳</div>
+        <div style='font-weight:700;font-size:1rem;color:#1a1d35'>Running statistical checks…</div>
+        <div style='font-size:0.8rem;color:#9399b8;margin-top:6px'>
+            Scanning IMDB data for anomalies across 3 check types
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    checks = load_checks(current_year, n_hist)
+    _load_ph.empty()
 
     flagged   = [c for c in checks if c.flagged]
     ok_checks = [c for c in checks if not c.flagged]
