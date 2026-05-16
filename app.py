@@ -49,12 +49,16 @@ html, body { background-color: #f0f3fa !important; }
     color: #e8eaf0 !important;
 }
 
-/* ── Tabs — sticky so they stay visible while scrolling ── */
-.stTabs [data-baseweb="tab-list"] {
-    position: sticky;
-    top: 0;
-    z-index: 999;
-    background: #f0f3fa;
+/* ── Sticky tab bar — break any overflow:hidden in parent chain ── */
+.stTabs { overflow: visible !important; }
+[data-testid="stMainBlockContainer"] { overflow: visible !important; }
+[data-testid="stAppViewContainer"]   { overflow: visible !important; }
+
+[data-baseweb="tab-list"] {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 9999 !important;
+    background: #f0f3fa !important;
     border-bottom: 2px solid #dde2f0;
     gap: 4px;
     padding-top: 6px;
@@ -249,19 +253,22 @@ html, body { background-color: #f0f3fa !important; }
     box-shadow: 0 2px 8px rgba(139,195,74,0.2) !important;
 }
 .stButton > button[kind="primary"] {
-    background: #1a1d35 !important;
-    color: #b5e550 !important;
-    border: none !important;
+    background: rgba(255,255,255,0.72) !important;
+    color: #1a1d35 !important;
+    border: 1.5px solid rgba(26,29,53,0.45) !important;
     font-weight: 700 !important;
     font-size: 0.75rem !important;
-    padding: 6px 10px !important;
+    padding: 6px 14px !important;
     border-radius: 20px !important;
     white-space: nowrap !important;
     letter-spacing: 0.04em !important;
+    backdrop-filter: blur(4px) !important;
 }
 .stButton > button[kind="primary"]:hover {
-    background: #2a2d55 !important;
-    box-shadow: 0 2px 10px rgba(26,29,53,0.25) !important;
+    background: #1a1d35 !important;
+    color: #b5e550 !important;
+    border-color: #1a1d35 !important;
+    box-shadow: 0 2px 10px rgba(26,29,53,0.22) !important;
 }
 
 /* ── Expander ── */
