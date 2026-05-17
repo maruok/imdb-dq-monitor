@@ -386,6 +386,8 @@ if "meta_suggestion" not in st.session_state:
     st.session_state.meta_suggestion = ""
 if "meta_tokens" not in st.session_state:
     st.session_state.meta_tokens = (0, 0)
+if "_expanded_inv" not in st.session_state:
+    st.session_state._expanded_inv = ""
 
 
 _TYPE_PREFIX = {"numerical": "num", "null_rate": "null", "categorical": "cat"}
@@ -576,6 +578,26 @@ def build_excel(
             cell.font = Font(name="Courier New", size=9, color="3A3F6E")
             cell.alignment = wrap
             ws2.row_dimensions[row_num].height = 30
+            row_num += 1
+
+        # Follow-up Q&A sub-rows
+        for fu_idx, fu in enumerate(inv.follow_ups, 1):
+            q_cell = ws2.cell(row=row_num, column=1, value=f"  Follow-up {fu_idx} Q")
+            q_cell.font = Font(size=9, italic=True, color="9399B8")
+            cell = ws2.cell(row=row_num, column=6, value=fu.question)
+            cell.font = Font(size=9, italic=True, color="1A1D35")
+            cell.alignment = wrap
+            ws2.row_dimensions[row_num].height = 25
+            row_num += 1
+
+            a_cell = ws2.cell(row=row_num, column=1, value=f"  Follow-up {fu_idx} A")
+            a_cell.font = Font(size=9, italic=True, color="9399B8")
+            cell = ws2.cell(row=row_num, column=6, value=fu.response)
+            cell.font = Font(size=9, color="1A1D35")
+            cell.alignment = wrap
+            ws2.row_dimensions[row_num].height = max(
+                60, min(15 * (fu.response.count("\n") + 1), 300)
+            )
             row_num += 1
 
     set_col_widths(ws2, [38, 13, 13, 12, 10, 70])
@@ -816,6 +838,7 @@ if page == "📋  Dashboard":
                 with st.spinner("AI investigating..."):
                     inv = investigate(check, get_con())
                     st.session_state.investigations[inv_key] = inv
+                st.session_state._expanded_inv = inv_key
         else:
             c_status.markdown(
                 "<span class='pill pill-ok'>OK</span>",
@@ -825,7 +848,8 @@ if page == "📋  Dashboard":
         # Investigation result
         if inv_key in st.session_state.investigations:
             inv = st.session_state.investigations[inv_key]
-            with st.expander(f"Investigation: {check.name}", expanded=True):
+            _is_expanded = (inv_key == st.session_state.get("_expanded_inv", ""))
+            with st.expander(f"Investigation: {check.name}", expanded=_is_expanded):
                 t1, t2, t3, t4 = st.columns(4)
                 t1.metric("Input tokens",  f"{inv.input_tokens:,}")
                 t2.metric("Output tokens", f"{inv.output_tokens:,}")
@@ -903,6 +927,7 @@ if page == "📋  Dashboard":
                 if fu_submit and fu_question.strip():
                     with st.spinner("AI investigating follow-up..."):
                         continue_investigation(inv, fu_question.strip(), get_con())
+                    st.session_state._expanded_inv = inv_key
                     st.rerun()
 
         st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
@@ -1082,11 +1107,18 @@ elif page == "📝  AIQ Promptbook":
         disabled=_n_inv == 0,
     )
     if _run_meta:
-            _summaries = [
-                inv.summary
-                for inv in st.session_state.investigations.values()
-                if inv.summary
-            ]
+            _summaries = []
+            for inv in st.session_state.investigations.values():
+                if not inv.summary:
+                    continue
+                text = inv.summary
+                for fu in inv.follow_ups:
+                    if fu.response:
+                        text += (
+                            f"\n\nFollow-up question from analyst: {fu.question}"
+                            f"\nFollow-up analysis: {fu.response}"
+                        )
+                _summaries.append(text)
             with st.spinner(f"Reviewing {len(_summaries)} investigation(s)…"):
                 _suggestion, _in_tok, _out_tok = meta_analyze(
                     _summaries, edited_prompt
