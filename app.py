@@ -449,6 +449,7 @@ def build_excel(
     investigations: dict,
     current_year: int,
     n_hist: int,
+    aiq_prompt: str = "",
 ) -> bytes:
     wb = openpyxl.Workbook()
 
@@ -579,6 +580,35 @@ def build_excel(
 
     set_col_widths(ws2, [38, 13, 13, 12, 10, 70])
 
+    # ── Sheet 3: AIQ Prompt ──────────────────────────────────────────────────
+    ws3 = wb.create_sheet("AIQ Prompt")
+    ws3["A1"] = "AIQ Promptbook — System Prompt Used in This Report"
+    ws3["A1"].font = title_font
+    ws3.merge_cells("A1:B1")
+    ws3.row_dimensions[1].height = 22
+
+    meta_rows = [
+        ("Report generated",   datetime.datetime.now().strftime("%Y-%m-%d %H:%M")),
+        ("Current period",     str(current_year)),
+        ("Historical periods", f"{current_year - n_hist}–{current_year - 1}  ({n_hist} years)"),
+        ("Prompt source",      "aiq_prompt.md (file) if saved, else built-in default"),
+    ]
+    for r, (label, value) in enumerate(meta_rows, 3):
+        ws3.cell(row=r, column=1, value=label).font  = Font(bold=True, size=10, color="6B7094")
+        ws3.cell(row=r, column=2, value=value).font  = Font(size=10)
+        ws3.row_dimensions[r].height = 16
+
+    ws3.cell(row=8, column=1, value="System Prompt Text").font = Font(bold=True, size=10, color="1A1D35")
+    ws3.row_dimensions[8].height = 18
+
+    prompt_cell = ws3.cell(row=9, column=1, value=aiq_prompt or "(no prompt captured)")
+    prompt_cell.font      = Font(name="Courier New", size=9, color="3A3F6E")
+    prompt_cell.alignment = Alignment(wrap_text=True, vertical="top")
+    ws3.merge_cells("A9:B9")
+    ws3.row_dimensions[9].height = max(200, min(15 * aiq_prompt.count("\n"), 600))
+    ws3.column_dimensions["A"].width = 60
+    ws3.column_dimensions["B"].width = 40
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -629,7 +659,7 @@ with st.sidebar:
     _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     st.download_button(
         label="⬇  Download Report (Excel)",
-        data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist),
+        data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist, st.session_state.aiq_prompt),
         file_name=_dl_filename,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
