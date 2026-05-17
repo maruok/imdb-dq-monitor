@@ -626,14 +626,14 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-_tnb1, _tnb2, _tnb3, _ = st.columns([1.3, 2.0, 2.0, 7])
-if _tnb1.button("Dashboard", key="top_nav_db"):
+_tnb1, _tnb2, _tnb3, _ = st.columns([2, 2, 2, 3])
+if _tnb1.button("Dashboard", key="top_nav_db", use_container_width=True):
     st.session_state["_pending_nav"] = "📋  Dashboard"
     st.rerun()
-if _tnb2.button("SQL Playground", key="top_nav_sql"):
+if _tnb2.button("SQL Playground", key="top_nav_sql", use_container_width=True):
     st.session_state["_pending_nav"] = "🔍  SQL Playground"
     st.rerun()
-if _tnb3.button("AIQ Promptbook", key="top_nav_aiq"):
+if _tnb3.button("AIQ Promptbook", key="top_nav_aiq", use_container_width=True):
     st.session_state["_pending_nav"] = "📝  AIQ Promptbook"
     st.rerun()
 
@@ -1006,10 +1006,10 @@ elif page == "📝  AIQ Promptbook":
     )
 
     # ── Prompt editor ────────────────────────────────────────────────────────
-    _pa, _pb, _pc, _ = st.columns([1.2, 1.5, 1.5, 6])
-    _save_clicked  = _pa.button("Save Changes", key="aiq_save",  type="primary")
-    _reset_clicked = _pb.button("Reset to Default", key="aiq_reset")
-    if _pc.button("Reload from File", key="aiq_reload"):
+    _pa, _pb, _pc, _ = st.columns([2, 2, 2, 3])
+    _save_clicked  = _pa.button("Save Changes", key="aiq_save", type="primary", use_container_width=True)
+    _reset_clicked = _pb.button("Reset to Default", key="aiq_reset", use_container_width=True)
+    if _pc.button("Reload from File", key="aiq_reload", use_container_width=True):
         st.session_state.aiq_prompt = load_prompt()
         st.rerun()
 
