@@ -449,6 +449,7 @@ def build_excel(
     current_year: int,
     n_hist: int,
     aiq_prompt: str = "",
+    meta_suggestion: str = "",
 ) -> bytes:
     wb = openpyxl.Workbook()
 
@@ -608,6 +609,32 @@ def build_excel(
     ws3.column_dimensions["A"].width = 60
     ws3.column_dimensions["B"].width = 40
 
+    # ── Sheet 4: AIQ Meta-Analysis Suggestions ───────────────────────────────
+    ws4 = wb.create_sheet("AIQ Meta-Analysis")
+    ws4["A1"] = "AIQ Meta-Analysis — Prompt Improvement Suggestions"
+    ws4["A1"].font = title_font
+    ws4.merge_cells("A1:B1")
+    ws4.row_dimensions[1].height = 22
+    ws4["A2"] = (
+        f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}  |  "
+        f"Based on batch run for period {current_year}"
+    )
+    ws4["A2"].font = Font(size=9, color="6B7094")
+    ws4.merge_cells("A2:B2")
+
+    if meta_suggestion:
+        ws4.cell(row=4, column=1, value="Suggestions Text").font = Font(bold=True, size=10, color="1A1D35")
+        sug_cell = ws4.cell(row=5, column=1, value=meta_suggestion)
+        sug_cell.font      = Font(size=10)
+        sug_cell.alignment = Alignment(wrap_text=True, vertical="top")
+        ws4.merge_cells("A5:B5")
+        ws4.row_dimensions[5].height = max(200, min(15 * meta_suggestion.count("\n"), 600))
+    else:
+        ws4.cell(row=4, column=1, value="No batch meta-analysis run yet for this session.").font = Font(size=10, color="9399B8")
+
+    ws4.column_dimensions["A"].width = 80
+    ws4.column_dimensions["B"].width = 20
+
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -657,7 +684,7 @@ with st.sidebar:
     _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     st.download_button(
         label="⬇  Download Report (Excel)",
-        data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist, st.session_state.aiq_prompt),
+        data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist, st.session_state.aiq_prompt, st.session_state.meta_suggestion),
         file_name=_dl_filename,
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
@@ -721,6 +748,9 @@ if page == "📋  Dashboard":
                 unsafe_allow_html=True,
             )
 
+        if st.session_state.get("_batch_done_msg"):
+            st.success(st.session_state.pop("_batch_done_msg"))
+
         if _run_batch:
             _prog = st.progress(0.0, text="Starting batch investigation…")
             for _bi, _bc in enumerate(flagged):
@@ -743,10 +773,12 @@ if page == "📋  Dashboard":
             st.session_state.meta_suggestion = _suggestion
             st.session_state.meta_tokens     = (_in_tok, _out_tok)
             _prog.empty()
-            st.success(
+            # Rerun so sidebar download button re-renders with updated investigations
+            st.session_state["_batch_done_msg"] = (
                 f"Batch complete — {len(flagged)} investigations done. "
-                "Suggestions ready in **AIQ Promptbook**."
+                "Suggestions ready in **AIQ Promptbook**. Excel download updated."
             )
+            st.rerun()
 
     def send_to_playground(q: str):
         st.session_state.sql_query = q
@@ -1052,11 +1084,10 @@ elif page == "📝  AIQ Promptbook":
         st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
         if st.button("Append suggestions to prompt", key="aiq_append"):
             appended = (
-                st.session_state.aiq_prompt.rstrip()
-                + "\n\n# Suggestions from batch meta-analysis:\n"
+                edited_prompt.rstrip()
+                + "\n\n# --- Suggestions from batch meta-analysis ---\n"
                 + st.session_state.meta_suggestion
             )
             st.session_state.aiq_prompt = appended
             save_prompt(appended)
-            st.success("Suggestions appended and saved. Review and trim as needed.")
             st.rerun()
