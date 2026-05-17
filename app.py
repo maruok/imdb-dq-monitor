@@ -653,14 +653,18 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+_cur_page = st.session_state.get("sidebar_nav", "📋  Dashboard")
 _tnb1, _tnb2, _tnb3, _ = st.columns([2, 2, 2, 3])
-if _tnb1.button("Dashboard", key="top_nav_db", use_container_width=True):
+if _tnb1.button("Dashboard", key="top_nav_db", use_container_width=True,
+                type="primary" if _cur_page == "📋  Dashboard" else "secondary"):
     st.session_state["_pending_nav"] = "📋  Dashboard"
     st.rerun()
-if _tnb2.button("SQL Playground", key="top_nav_sql", use_container_width=True):
+if _tnb2.button("SQL Playground", key="top_nav_sql", use_container_width=True,
+                type="primary" if _cur_page == "🔍  SQL Playground" else "secondary"):
     st.session_state["_pending_nav"] = "🔍  SQL Playground"
     st.rerun()
-if _tnb3.button("AIQ Promptbook", key="top_nav_aiq", use_container_width=True):
+if _tnb3.button("AIQ Promptbook", key="top_nav_aiq", use_container_width=True,
+                type="primary" if _cur_page == "📝  AIQ Promptbook" else "secondary"):
     st.session_state["_pending_nav"] = "📝  AIQ Promptbook"
     st.rerun()
 
@@ -761,22 +765,12 @@ if page == "📋  Dashboard":
                 st.session_state.investigations[_inv_key(_bc)] = investigate(
                     _bc, get_con(), st.session_state.aiq_prompt
                 )
-            _prog.progress(1.0, text="Running meta-analysis…")
-            _summaries = [
-                st.session_state.investigations[_inv_key(c)].summary
-                for c in flagged
-                if _inv_key(c) in st.session_state.investigations
-            ]
-            _suggestion, _in_tok, _out_tok = meta_analyze(
-                _summaries, st.session_state.aiq_prompt
-            )
-            st.session_state.meta_suggestion = _suggestion
-            st.session_state.meta_tokens     = (_in_tok, _out_tok)
+            _prog.progress(1.0, text="All investigations complete.")
             _prog.empty()
             # Rerun so sidebar download button re-renders with updated investigations
             st.session_state["_batch_done_msg"] = (
                 f"Batch complete — {len(flagged)} investigations done. "
-                "Suggestions ready in **AIQ Promptbook**. Excel download updated."
+                "Go to **AIQ Promptbook** to review results and request prompt suggestions."
             )
             st.rerun()
 
@@ -1061,31 +1055,58 @@ elif page == "📝  AIQ Promptbook":
         save_prompt(edited_prompt)
         st.success("Saved to aiq_prompt.md — all future investigations will use this prompt.")
 
-    # ── Meta-analysis suggestions ─────────────────────────────────────────────
+    # ── Prompt improvement suggestions ───────────────────────────────────────
     st.markdown("---")
     st.markdown(
-        "<div class='section-header'>Latest Batch Analysis Suggestions</div>",
+        "<div class='section-header'>Prompt Improvement Suggestions</div>",
         unsafe_allow_html=True,
     )
 
-    if not st.session_state.meta_suggestion:
+    _n_inv = len(st.session_state.investigations)
+    if _n_inv == 0:
         st.markdown(
-            "<div style='color:#9399b8;font-size:0.85rem;padding:16px 0'>"
-            "No batch run yet. Go to Dashboard → <b>Run All Flagged</b> to generate suggestions."
+            "<div style='color:#9399b8;font-size:0.85rem;padding:12px 0'>"
+            "No investigations available yet. Run at least one investigation from the Dashboard first."
             "</div>",
             unsafe_allow_html=True,
         )
     else:
+        _ra, _rb, _ = st.columns([3, 3, 3])
+        _ra.markdown(
+            f"<div style='font-size:0.82rem;color:#6b7094;padding-top:10px'>"
+            f"{_n_inv} investigation(s) available for review</div>",
+            unsafe_allow_html=True,
+        )
+        _run_meta = _rb.button(
+            f"Review & suggest improvements",
+            key="aiq_meta_run",
+            use_container_width=True,
+        )
+        if _run_meta:
+            _summaries = [
+                inv.summary
+                for inv in st.session_state.investigations.values()
+                if inv.summary
+            ]
+            with st.spinner(f"Reviewing {len(_summaries)} investigation(s)…"):
+                _suggestion, _in_tok, _out_tok = meta_analyze(
+                    _summaries, edited_prompt
+                )
+            st.session_state.meta_suggestion = _suggestion
+            st.session_state.meta_tokens     = (_in_tok, _out_tok)
+            st.rerun()
+
+    if st.session_state.meta_suggestion:
+        st.markdown("<div style='margin-top:8px'></div>", unsafe_allow_html=True)
         _in_tok, _out_tok = st.session_state.meta_tokens
         _cost = (_in_tok * 3.0 + _out_tok * 15.0) / 1_000_000
-        st.caption(f"Meta-analysis tokens: {_in_tok + _out_tok:,}  ·  Cost: ${_cost:.4f}")
+        st.caption(f"Tokens: {_in_tok + _out_tok:,}  ·  Cost: ${_cost:.4f}  ·  Included in Excel export")
         st.markdown(st.session_state.meta_suggestion)
 
-        st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
         if st.button("Append suggestions to prompt", key="aiq_append"):
             appended = (
                 edited_prompt.rstrip()
-                + "\n\n# --- Suggestions from batch meta-analysis ---\n"
+                + "\n\n# --- AIQ suggested additions ---\n"
                 + st.session_state.meta_suggestion
             )
             st.session_state.aiq_prompt = appended
