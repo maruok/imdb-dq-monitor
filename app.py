@@ -344,11 +344,10 @@ with st.sidebar:
     current_year = st.selectbox("CURRENT PERIOD", options=list(range(2024, 2009, -1)), index=0)
     n_hist = st.slider("HISTORICAL PERIODS", min_value=6, max_value=15, value=12)
 
-    st.markdown("---")
     st.markdown("""
-    <div style='font-size:0.72rem;color:#7b7fa8;line-height:1.7'>
+    <div style='font-size:0.72rem;color:#7b7fa8;line-height:1.6;margin-top:10px'>
         Flags anomalies using <b style='color:#c8cadc'>Tukey IQR fences</b>.<br>
-        Current period vs preceding N years.<br><br>
+        Current period vs preceding N years.<br>
         <b style='color:#b5e550'>Click Investigate</b> to launch the AI agent.
     </div>
     """, unsafe_allow_html=True)
@@ -638,12 +637,10 @@ if _tnb3.button("AIQ Promptbook", key="top_nav_aiq"):
     st.session_state["sidebar_nav"] = "📝  AIQ Promptbook"
     st.rerun()
 
-page = st.session_state["sidebar_nav"]
-
 # Sidebar navigate + export — placed here so build_excel/load_checks are in scope
 with st.sidebar:
-    st.markdown("---")
-    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Navigate</div>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin:10px 0 8px 0;border-color:#2a2d4a'>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px'>Navigate</div>", unsafe_allow_html=True)
     _nav_options = ["📋  Dashboard", "🔍  SQL Playground", "📝  AIQ Promptbook"]
     _nav_idx = _nav_options.index(st.session_state.get("sidebar_nav", "📋  Dashboard"))
     _nav_choice = st.radio(
@@ -654,7 +651,7 @@ with st.sidebar:
     )
     st.session_state["sidebar_nav"] = _nav_choice
 
-    st.markdown("<div style='margin-top:16px;font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px'>Export</div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top:10px;font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Export</div>", unsafe_allow_html=True)
     _dl_checks = load_checks(current_year, n_hist)
     _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
     st.download_button(
@@ -664,6 +661,9 @@ with st.sidebar:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
+
+# page is read AFTER the sidebar radio has written its value to session state
+page = st.session_state["sidebar_nav"]
 
 # ===========================================================================
 # DASHBOARD
