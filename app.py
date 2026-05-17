@@ -628,28 +628,29 @@ st.markdown(f"""
 
 _tnb1, _tnb2, _tnb3, _ = st.columns([1.3, 2.0, 2.0, 7])
 if _tnb1.button("Dashboard", key="top_nav_db"):
-    st.session_state["sidebar_nav"] = "📋  Dashboard"
+    st.session_state["_pending_nav"] = "📋  Dashboard"
     st.rerun()
 if _tnb2.button("SQL Playground", key="top_nav_sql"):
-    st.session_state["sidebar_nav"] = "🔍  SQL Playground"
+    st.session_state["_pending_nav"] = "🔍  SQL Playground"
     st.rerun()
 if _tnb3.button("AIQ Promptbook", key="top_nav_aiq"):
-    st.session_state["sidebar_nav"] = "📝  AIQ Promptbook"
+    st.session_state["_pending_nav"] = "📝  AIQ Promptbook"
     st.rerun()
 
 # Sidebar navigate + export — placed here so build_excel/load_checks are in scope
 with st.sidebar:
     st.markdown("<hr style='margin:10px 0 8px 0;border-color:#2a2d4a'>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px'>Navigate</div>", unsafe_allow_html=True)
+    # Apply top-nav button destination BEFORE the radio renders so key= picks it up
+    if "_pending_nav" in st.session_state:
+        st.session_state["sidebar_nav"] = st.session_state.pop("_pending_nav")
     _nav_options = ["📋  Dashboard", "🔍  SQL Playground", "📝  AIQ Promptbook"]
-    _nav_idx = _nav_options.index(st.session_state.get("sidebar_nav", "📋  Dashboard"))
-    _nav_choice = st.radio(
+    st.radio(
         "page",
         _nav_options,
-        index=_nav_idx,
+        key="sidebar_nav",
         label_visibility="collapsed",
     )
-    st.session_state["sidebar_nav"] = _nav_choice
 
     st.markdown("<div style='margin-top:10px;font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Export</div>", unsafe_allow_html=True)
     _dl_checks = load_checks(current_year, n_hist)
