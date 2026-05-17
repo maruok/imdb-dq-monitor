@@ -1135,10 +1135,14 @@ elif page == "📝  AIQ Promptbook":
         st.markdown(st.session_state.meta_suggestion)
 
         if st.button("Append suggestions to prompt", key="aiq_append"):
+            # Extract only the Suggested Prompt Additions section — not the analyst commentary
+            _full = st.session_state.meta_suggestion
+            _marker = "## Suggested Prompt Additions"
+            _additions_only = _full[_full.find(_marker) + len(_marker):].strip() if _marker in _full else _full
             appended = (
                 edited_prompt.rstrip()
                 + "\n\n# --- AIQ suggested additions ---\n"
-                + st.session_state.meta_suggestion
+                + _additions_only
             )
             st.session_state.aiq_prompt = appended
             save_prompt(appended)
