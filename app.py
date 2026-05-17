@@ -653,6 +653,10 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+# Apply pending nav destination before _cur_page is read so top-nav buttons highlight immediately
+if "_pending_nav" in st.session_state:
+    st.session_state["sidebar_nav"] = st.session_state.pop("_pending_nav")
+
 _cur_page = st.session_state.get("sidebar_nav", "📋  Dashboard")
 _tnb1, _tnb2, _tnb3, _ = st.columns([2, 2, 2, 3])
 if _tnb1.button("Dashboard", key="top_nav_db", use_container_width=True,
@@ -672,9 +676,6 @@ if _tnb3.button("AIQ Promptbook", key="top_nav_aiq", use_container_width=True,
 with st.sidebar:
     st.markdown("<hr style='margin:10px 0 8px 0;border-color:#2a2d4a'>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px'>Navigate</div>", unsafe_allow_html=True)
-    # Apply top-nav button destination BEFORE the radio renders so key= picks it up
-    if "_pending_nav" in st.session_state:
-        st.session_state["sidebar_nav"] = st.session_state.pop("_pending_nav")
     _nav_options = ["📋  Dashboard", "🔍  SQL Playground", "📝  AIQ Promptbook"]
     st.radio(
         "page",
@@ -1033,7 +1034,7 @@ elif page == "📝  AIQ Promptbook":
 
     # ── Prompt editor ────────────────────────────────────────────────────────
     _pa, _pb, _pc, _ = st.columns([2, 2, 2, 3])
-    _save_clicked  = _pa.button("Save Changes", key="aiq_save", type="primary", use_container_width=True)
+    _save_clicked  = _pa.button("Save Changes", key="aiq_save", use_container_width=True)
     _reset_clicked = _pb.button("Reset to Default", key="aiq_reset", use_container_width=True)
     if _pc.button("Reload from File", key="aiq_reload", use_container_width=True):
         st.session_state.aiq_prompt = load_prompt()
@@ -1063,26 +1064,24 @@ elif page == "📝  AIQ Promptbook":
     )
 
     _n_inv = len(st.session_state.investigations)
-    if _n_inv == 0:
-        st.markdown(
-            "<div style='color:#9399b8;font-size:0.85rem;padding:12px 0'>"
-            "No investigations available yet. Run at least one investigation from the Dashboard first."
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        _ra, _rb, _ = st.columns([3, 3, 3])
-        _ra.markdown(
+    _ra, _rb, _ = st.columns([3, 3, 3])
+    _ra.markdown(
+        (
             f"<div style='font-size:0.82rem;color:#6b7094;padding-top:10px'>"
-            f"{_n_inv} investigation(s) available for review</div>",
-            unsafe_allow_html=True,
-        )
-        _run_meta = _rb.button(
-            f"Review & suggest improvements",
-            key="aiq_meta_run",
-            use_container_width=True,
-        )
-        if _run_meta:
+            f"{_n_inv} investigation(s) available for review</div>"
+        ) if _n_inv > 0 else (
+            "<div style='font-size:0.82rem;color:#9399b8;padding-top:10px'>"
+            "Run at least one investigation from the Dashboard first.</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+    _run_meta = _rb.button(
+        "Review & suggest improvements",
+        key="aiq_meta_run",
+        use_container_width=True,
+        disabled=_n_inv == 0,
+    )
+    if _run_meta:
             _summaries = [
                 inv.summary
                 for inv in st.session_state.investigations.values()
