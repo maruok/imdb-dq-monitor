@@ -9,6 +9,7 @@ import duckdb
 import anthropic
 from dataclasses import dataclass, field
 from checks import CheckResult
+from prompts import load_prompt
 
 SQL_TOOL = {
     "name": "run_sql",
@@ -216,7 +217,11 @@ def _run_agent_loop(
     return messages, "Agent reached query limit without conclusion.", False, input_tokens, output_tokens, steps_out
 
 
-def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> "Investigation":
+def investigate(
+    check: CheckResult,
+    con: duckdb.DuckDBPyConnection,
+    system_prompt: str | None = None,
+) -> "Investigation":
     """Run the initial investigation and return an Investigation with full conversation history."""
     inv = Investigation()
 
@@ -225,6 +230,7 @@ def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> "Investig
         inv.summary = "Error: ANTHROPIC_API_KEY environment variable not set."
         return inv
 
+    effective_prompt = system_prompt if system_prompt is not None else load_prompt()
     client   = anthropic.Anthropic(api_key=api_key)
     messages = [{"role": "user", "content": _build_initial_prompt(check)}]
 
@@ -232,7 +238,7 @@ def investigate(check: CheckResult, con: duckdb.DuckDBPyConnection) -> "Investig
         response = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=4096,
-            system=SYSTEM_PROMPT,
+            system=effective_prompt,
             tools=[SQL_TOOL],
             messages=messages,
         )
@@ -338,3 +344,56 @@ def continue_investigation(
     fu.response  = "Follow-up reached query limit. Review steps above."
     inv.messages = messages
     inv.follow_ups.append(fu)
+
+
+_META_PROMPT = """You are reviewing a batch of AI data quality investigation summaries.
+Your job is to identify common patterns and suggest targeted improvements to the
+AIQ system prompt — the instructions given to the AI agent before each investigation.
+
+Analyse all summaries and produce three sections:
+
+## Common Patterns Found
+Bullet list of the 2-4 recurring root causes or themes you see across investigations.
+
+## Investigation Gaps
+What angles did the agent consistently miss or under-investigate?
+
+## Suggested Prompt Additions
+Write 2-4 concrete, ready-to-paste lines to add to the system prompt.
+Format each as a quoted block starting with a dash, e.g.:
+- "Always check whether a small number of high-vote outlier titles (top 5-10 by numVotes) account for more than 50% of the anomaly before concluding a broader trend."
+
+Be specific and actionable. Do not repeat guidance that is already in the current prompt."""
+
+
+def meta_analyze(summaries: list[str], current_prompt: str = "") -> tuple[str, int, int]:
+    """
+    Review all investigation summaries and suggest AIQ prompt improvements.
+    Returns (suggestion_text, input_tokens, output_tokens).
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return "Error: ANTHROPIC_API_KEY not set.", 0, 0
+
+    client = anthropic.Anthropic(api_key=api_key)
+
+    summaries_text = "\n\n---\n\n".join(
+        f"Investigation {i + 1}:\n{s}" for i, s in enumerate(summaries)
+    )
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system=_META_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Current AIQ system prompt:\n\n{current_prompt}\n\n"
+                f"=== Investigation Summaries ({len(summaries)} total) ===\n\n"
+                f"{summaries_text}"
+            ),
+        }],
+    )
+
+    text = response.content[0].text if response.content else ""
+    return text, response.usage.input_tokens, response.usage.output_tokens

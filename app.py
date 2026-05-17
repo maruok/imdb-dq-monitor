@@ -12,7 +12,8 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from data_loader import ensure_data
 from checks import get_connection, run_all_checks, CheckResult
-from investigator import investigate, continue_investigation, Investigation
+from investigator import investigate, continue_investigation, Investigation, meta_analyze
+from prompts import load_prompt, save_prompt, DEFAULT_SYSTEM_PROMPT
 
 st.set_page_config(
     page_title="IMDB Data Quality Monitor",
@@ -380,6 +381,20 @@ if "sql_query" not in st.session_state:
         "GROUP BY b.titleType\n"
         "ORDER BY cnt DESC"
     )
+if "aiq_prompt" not in st.session_state:
+    st.session_state.aiq_prompt = load_prompt()
+if "meta_suggestion" not in st.session_state:
+    st.session_state.meta_suggestion = ""
+if "meta_tokens" not in st.session_state:
+    st.session_state.meta_tokens = (0, 0)
+
+
+_TYPE_PREFIX = {"numerical": "num", "null_rate": "null", "categorical": "cat"}
+
+
+def _inv_key(check: CheckResult) -> str:
+    prefix = _TYPE_PREFIX.get(check.context.get("check_type", ""), "unk")
+    return f"{prefix}_{check.name}_inv"
 
 
 # ---------------------------------------------------------------------------
@@ -582,12 +597,15 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-_tnb1, _tnb2, _ = st.columns([1.3, 2.0, 9])
+_tnb1, _tnb2, _tnb3, _ = st.columns([1.3, 2.0, 2.0, 7])
 if _tnb1.button("Dashboard", key="top_nav_db"):
     st.session_state["sidebar_nav"] = "📋  Dashboard"
     st.rerun()
 if _tnb2.button("SQL Playground", key="top_nav_sql"):
     st.session_state["sidebar_nav"] = "🔍  SQL Playground"
+    st.rerun()
+if _tnb3.button("AIQ Promptbook", key="top_nav_aiq"):
+    st.session_state["sidebar_nav"] = "📝  AIQ Promptbook"
     st.rerun()
 
 page = st.session_state["sidebar_nav"]
@@ -596,7 +614,7 @@ page = st.session_state["sidebar_nav"]
 with st.sidebar:
     st.markdown("---")
     st.markdown("<div style='font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Navigate</div>", unsafe_allow_html=True)
-    _nav_options = ["📋  Dashboard", "🔍  SQL Playground"]
+    _nav_options = ["📋  Dashboard", "🔍  SQL Playground", "📝  AIQ Promptbook"]
     _nav_idx = _nav_options.index(st.session_state.get("sidebar_nav", "📋  Dashboard"))
     _nav_choice = st.radio(
         "page",
@@ -654,6 +672,50 @@ if page == "📋  Dashboard":
             <div class="summary-number {cls}">{number}</div>
         </div>
         """, unsafe_allow_html=True)
+
+    # ── Batch investigation run ─────────────────────────────────────────────
+    if flagged:
+        _bc1, _bc2, _bc3 = st.columns([2, 2, 4])
+        _already_done = sum(1 for c in flagged if _inv_key(c) in st.session_state.investigations)
+        _batch_label  = (
+            f"Run All Flagged ({len(flagged)})"
+            if _already_done == 0
+            else f"Re-run All Flagged ({len(flagged)})"
+        )
+        _run_batch = _bc1.button(_batch_label, key="batch_run")
+        if _already_done > 0:
+            _bc2.markdown(
+                f"<div style='font-size:0.75rem;color:#9399b8;padding-top:10px'>"
+                f"{_already_done}/{len(flagged)} already investigated</div>",
+                unsafe_allow_html=True,
+            )
+
+        if _run_batch:
+            _prog = st.progress(0.0, text="Starting batch investigation…")
+            for _bi, _bc in enumerate(flagged):
+                _prog.progress(
+                    _bi / len(flagged),
+                    text=f"Investigating {_bi + 1}/{len(flagged)}: {_bc.name}",
+                )
+                st.session_state.investigations[_inv_key(_bc)] = investigate(
+                    _bc, get_con(), st.session_state.aiq_prompt
+                )
+            _prog.progress(1.0, text="Running meta-analysis…")
+            _summaries = [
+                st.session_state.investigations[_inv_key(c)].summary
+                for c in flagged
+                if _inv_key(c) in st.session_state.investigations
+            ]
+            _suggestion, _in_tok, _out_tok = meta_analyze(
+                _summaries, st.session_state.aiq_prompt
+            )
+            st.session_state.meta_suggestion = _suggestion
+            st.session_state.meta_tokens     = (_in_tok, _out_tok)
+            _prog.empty()
+            st.success(
+                f"Batch complete — {len(flagged)} investigations done. "
+                "Suggestions ready in **AIQ Promptbook**."
+            )
 
     def send_to_playground(q: str):
         st.session_state.sql_query = q
@@ -895,3 +957,75 @@ elif page == "🔍  SQL Playground":
                 st.dataframe(data, use_container_width=True)
         except Exception as e:
             st.error(f"SQL Error: {e}")
+
+
+# ===========================================================================
+# AIQ PROMPTBOOK
+# ===========================================================================
+elif page == "📝  AIQ Promptbook":
+    st.markdown("<div class='section-header'>AIQ Promptbook</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-size:0.82rem;color:#9399b8;margin-bottom:20px'>"
+        "Edit the system prompt given to the AI investigation agent. "
+        "Changes take effect immediately on the next investigation. "
+        "The prompt is saved to <code style='background:#e8ecf8;padding:2px 6px;"
+        "border-radius:4px;color:#3a3f6e'>aiq_prompt.md</code> in the project folder."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    # ── Prompt editor ────────────────────────────────────────────────────────
+    _pa, _pb, _pc, _ = st.columns([1.2, 1.5, 1.5, 6])
+    _save_clicked  = _pa.button("Save Changes", key="aiq_save",  type="primary")
+    _reset_clicked = _pb.button("Reset to Default", key="aiq_reset")
+    if _pc.button("Reload from File", key="aiq_reload"):
+        st.session_state.aiq_prompt = load_prompt()
+        st.rerun()
+
+    if _reset_clicked:
+        st.session_state.aiq_prompt = DEFAULT_SYSTEM_PROMPT
+        st.rerun()
+
+    edited_prompt = st.text_area(
+        "System prompt:",
+        value=st.session_state.aiq_prompt,
+        height=420,
+        label_visibility="collapsed",
+    )
+
+    if _save_clicked:
+        st.session_state.aiq_prompt = edited_prompt
+        save_prompt(edited_prompt)
+        st.success("Saved to aiq_prompt.md — all future investigations will use this prompt.")
+
+    # ── Meta-analysis suggestions ─────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown(
+        "<div class='section-header'>Latest Batch Analysis Suggestions</div>",
+        unsafe_allow_html=True,
+    )
+
+    if not st.session_state.meta_suggestion:
+        st.markdown(
+            "<div style='color:#9399b8;font-size:0.85rem;padding:16px 0'>"
+            "No batch run yet. Go to Dashboard → <b>Run All Flagged</b> to generate suggestions."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        _in_tok, _out_tok = st.session_state.meta_tokens
+        _cost = (_in_tok * 3.0 + _out_tok * 15.0) / 1_000_000
+        st.caption(f"Meta-analysis tokens: {_in_tok + _out_tok:,}  ·  Cost: ${_cost:.4f}")
+        st.markdown(st.session_state.meta_suggestion)
+
+        st.markdown("<div style='margin-top:12px'></div>", unsafe_allow_html=True)
+        if st.button("Append suggestions to prompt", key="aiq_append"):
+            appended = (
+                st.session_state.aiq_prompt.rstrip()
+                + "\n\n# Suggestions from batch meta-analysis:\n"
+                + st.session_state.meta_suggestion
+            )
+            st.session_state.aiq_prompt = appended
+            save_prompt(appended)
+            st.success("Suggestions appended and saved. Review and trim as needed.")
+            st.rerun()
