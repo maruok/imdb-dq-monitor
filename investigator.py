@@ -360,8 +360,8 @@ What angles did the agent consistently miss or under-investigate?
 
 ## Suggested Prompt Additions
 Write 2-4 concrete, ready-to-paste lines to add to the system prompt.
-Format each as a quoted block starting with a dash, e.g.:
-- "Always check whether a small number of high-vote outlier titles (top 5-10 by numVotes) account for more than 50% of the anomaly before concluding a broader trend."
+Format each as a plain bullet starting with a dash (no surrounding quotes), e.g.:
+- Always check whether a small number of high-vote outlier titles (top 5-10 by numVotes) account for more than 50% of the anomaly before concluding a broader trend.
 
 Be specific and actionable. Do not repeat guidance that is already in the current prompt."""
 
