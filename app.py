@@ -707,15 +707,20 @@ with st.sidebar:
     )
 
     st.markdown("<div style='margin-top:10px;font-size:0.68rem;font-weight:700;color:#7b7fa8;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px'>Export</div>", unsafe_allow_html=True)
-    _dl_checks = load_checks(current_year, n_hist)
-    _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    st.download_button(
-        label="⬇  Download Report (Excel)",
-        data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist, st.session_state.aiq_prompt, st.session_state.meta_suggestion),
-        file_name=_dl_filename,
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-    )
+    # Use checks already loaded by the Dashboard section (stored in session state)
+    # to avoid blocking the sidebar before the loading card has a chance to render.
+    _dl_checks = st.session_state.get("_checks_cache")
+    if _dl_checks:
+        _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        st.download_button(
+            label="⬇  Download Report (Excel)",
+            data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist, st.session_state.aiq_prompt, st.session_state.meta_suggestion),
+            file_name=_dl_filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+    else:
+        st.caption("Open the Dashboard to enable export.")
 
 # page is read AFTER the sidebar radio has written its value to session state
 page = st.session_state["sidebar_nav"]
@@ -724,10 +729,21 @@ page = st.session_state["sidebar_nav"]
 # DASHBOARD
 # ===========================================================================
 if page == "📋  Dashboard":
-    with st.status("Running statistical checks…", expanded=True) as _status:
-        st.write("Scanning IMDB data for anomalies across 3 check types…")
-        checks = load_checks(current_year, n_hist)
-        _status.update(label="Checks complete", state="complete", expanded=False)
+    _load_ph = st.empty()
+    _load_ph.markdown("""
+    <div style='background:#ffffff;border:1.5px solid #dde2f0;border-radius:14px;
+                padding:48px 24px;text-align:center;margin:24px 0;
+                box-shadow:0 2px 12px rgba(26,29,53,0.07)'>
+        <div style='font-size:2rem;margin-bottom:12px'>⏳</div>
+        <div style='font-weight:700;font-size:1rem;color:#1a1d35'>Running statistical checks…</div>
+        <div style='font-size:0.8rem;color:#9399b8;margin-top:6px'>
+            Scanning IMDB data for anomalies across 3 check types
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    checks = load_checks(current_year, n_hist)
+    st.session_state["_checks_cache"] = checks
+    _load_ph.empty()
 
     flagged   = [c for c in checks if c.flagged]
     ok_checks = [c for c in checks if not c.flagged]
