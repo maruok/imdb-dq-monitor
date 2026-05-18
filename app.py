@@ -885,7 +885,6 @@ if page == "📋  Dashboard":
                     and not l.strip().startswith("ACTION REQUIRED:")
                     and not l.strip().startswith("NO ACTION NEEDED:")
                 )
-                verify_lines = [l[len("VERIFY:"):].strip() for l in lines if l.startswith("VERIFY:")]
                 _verdict = next(
                     (l.strip() for l in lines
                      if l.strip().startswith("ACTION REQUIRED:") or l.strip().startswith("NO ACTION NEEDED:")),
@@ -902,15 +901,6 @@ if page == "📋  Dashboard":
                     st.success(summary_text)
                 else:
                     st.warning(summary_text)
-
-                if verify_lines:
-                    st.markdown("**Verification queries:**")
-                    for i, q in enumerate(verify_lines):
-                        vc1, vc2 = st.columns([5, 1])
-                        vc1.code(q, language="sql")
-                        if vc2.button("▶ Run", key=f"{inv_key}_verify_{i}"):
-                            send_to_playground(q)
-                            st.info("Sent to SQL Playground — click the tab above.")
 
                 # ── Follow-up chat ──────────────────────────────────────────
                 st.markdown("---")

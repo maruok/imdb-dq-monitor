@@ -36,7 +36,6 @@ Your final summary must include:
 - The specific numbers: how many titles, how the count changed vs prior year
 - The most likely driver (specific title types, new releases, a few high-vote outliers, or a data issue)
 - Whether this is a legitimate trend or a data quality concern
-- Exactly 3 verification queries on their own lines starting with "VERIFY:"
 
 After at most 5 queries you MUST write your final summary."""
 
