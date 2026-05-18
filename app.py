@@ -724,20 +724,10 @@ page = st.session_state["sidebar_nav"]
 # DASHBOARD
 # ===========================================================================
 if page == "📋  Dashboard":
-    _load_ph = st.empty()
-    _load_ph.markdown("""
-    <div style='background:#ffffff;border:1.5px solid #dde2f0;border-radius:14px;
-                padding:48px 24px;text-align:center;margin:24px 0;
-                box-shadow:0 2px 12px rgba(26,29,53,0.07)'>
-        <div style='font-size:2rem;margin-bottom:12px'>⏳</div>
-        <div style='font-weight:700;font-size:1rem;color:#1a1d35'>Running statistical checks…</div>
-        <div style='font-size:0.8rem;color:#9399b8;margin-top:6px'>
-            Scanning IMDB data for anomalies across 3 check types
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    checks = load_checks(current_year, n_hist)
-    _load_ph.empty()
+    with st.status("Running statistical checks…", expanded=True) as _status:
+        st.write("Scanning IMDB data for anomalies across 3 check types…")
+        checks = load_checks(current_year, n_hist)
+        _status.update(label="Checks complete", state="complete", expanded=False)
 
     flagged   = [c for c in checks if c.flagged]
     ok_checks = [c for c in checks if not c.flagged]
@@ -873,8 +863,24 @@ if page == "📋  Dashboard":
 
                 st.markdown("#### Summary")
                 lines        = inv.summary.split("\n")
-                summary_text = "\n".join(l for l in lines if not l.startswith("VERIFY:"))
+                summary_text = "\n".join(
+                    l for l in lines
+                    if not l.startswith("VERIFY:")
+                    and not l.strip().startswith("ACTION REQUIRED:")
+                    and not l.strip().startswith("NO ACTION NEEDED:")
+                )
                 verify_lines = [l[len("VERIFY:"):].strip() for l in lines if l.startswith("VERIFY:")]
+                _verdict = next(
+                    (l.strip() for l in lines
+                     if l.strip().startswith("ACTION REQUIRED:") or l.strip().startswith("NO ACTION NEEDED:")),
+                    None,
+                )
+
+                if _verdict:
+                    if _verdict.startswith("ACTION REQUIRED:"):
+                        st.error(f"🔴 {_verdict}")
+                    else:
+                        st.success(f"✅ {_verdict}")
 
                 if inv.completed:
                     st.success(summary_text)
@@ -1132,18 +1138,57 @@ elif page == "📝  AIQ Promptbook":
         _in_tok, _out_tok = st.session_state.meta_tokens
         _cost = (_in_tok * 3.0 + _out_tok * 15.0) / 1_000_000
         st.caption(f"Tokens: {_in_tok + _out_tok:,}  ·  Cost: ${_cost:.4f}  ·  Included in Excel export")
-        st.markdown(st.session_state.meta_suggestion)
 
-        if st.button("Append suggestions to prompt", key="aiq_append"):
+        # Show only the analysis sections (Common Patterns, Gaps, Suggestions) — not the full revised prompt
+        _full_meta = st.session_state.meta_suggestion
+        _revised_marker = "## Revised Full Prompt"
+        _display_meta = (
+            _full_meta[:_full_meta.find(_revised_marker)].strip()
+            if _revised_marker in _full_meta
+            else _full_meta
+        )
+        st.markdown(_display_meta)
+
+        _btn_col1, _btn_col2, _ = st.columns([3, 3, 3])
+        if _btn_col1.button("Append suggestions to prompt", key="aiq_append"):
             # Extract only the Suggested Prompt Additions section — not the analyst commentary
             _full = st.session_state.meta_suggestion
-            _marker = "## Suggested Prompt Additions"
-            _additions_only = _full[_full.find(_marker) + len(_marker):].strip() if _marker in _full else _full
+            _start = "## Suggested Prompt Additions"
+            _end   = "## Revised Full Prompt"
+            _additions_only = (
+                _full[_full.find(_start) + len(_start) : _full.find(_end)].strip()
+                if _start in _full and _end in _full
+                else (_full[_full.find(_start) + len(_start):].strip() if _start in _full else _full)
+            )
+            _ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
             appended = (
                 edited_prompt.rstrip()
-                + "\n\n# --- AIQ suggested additions ---\n"
+                + f"\n\n# --- AIQ suggested additions ({_ts}) ---\n"
                 + _additions_only
             )
             st.session_state.aiq_prompt = appended
             save_prompt(appended)
             st.rerun()
+
+        # Revised full prompt section
+        if _revised_marker in _full_meta:
+            _revised_prompt = _full_meta[_full_meta.find(_revised_marker) + len(_revised_marker):].strip()
+            with st.expander("Replace full prompt with AI-revised version", expanded=False):
+                st.caption(
+                    "The AI has rewritten the full prompt incorporating all improvements. "
+                    "Review before applying — edits are saved immediately."
+                )
+                _edited_revision = st.text_area(
+                    "Revised prompt:",
+                    value=_revised_prompt,
+                    height=340,
+                    key="aiq_revised_prompt",
+                    label_visibility="collapsed",
+                )
+                if st.button("Replace full prompt with this revision", key="aiq_replace_full"):
+                    _ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+                    _dated = _edited_revision.rstrip() + f"\n\n# Revised by meta-analysis: {_ts}"
+                    st.session_state.aiq_prompt = _dated
+                    save_prompt(_dated)
+                    st.success(f"Full prompt replaced ({_ts}).")
+                    st.rerun()

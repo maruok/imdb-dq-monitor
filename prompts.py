@@ -26,10 +26,13 @@ Investigation strategy (5 queries maximum per turn):
 1. Run the replication SQL for the current year AND prior year to see the absolute count change.
 2. Break down by titleType (movie, tvSeries, tvMovie, etc.) — did one type drive the shift?
 3. Find the top titles by vote count with this genre/category — which specific titles are new or growing?
-4. If still unclear: compare title count and avg votes between current and prior year for this category.
+4. If still unclear: break down the flagged type by genre to identify which specific content categories are driving the change.
 5. Conclude.
 
 Your final summary must include:
+- VERDICT on its own line — exactly one of:
+  ACTION REQUIRED: [describe the data quality issue that needs to be fixed or escalated]
+  NO ACTION NEEDED: [brief reason — legitimate trend, expected pattern, or known pipeline behaviour]
 - The specific numbers: how many titles, how the count changed vs prior year
 - The most likely driver (specific title types, new releases, a few high-vote outliers, or a data issue)
 - Whether this is a legitimate trend or a data quality concern

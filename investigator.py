@@ -350,7 +350,7 @@ _META_PROMPT = """You are reviewing a batch of AI data quality investigation sum
 Your job is to identify common patterns and suggest targeted improvements to the
 AIQ system prompt — the instructions given to the AI agent before each investigation.
 
-Analyse all summaries and produce three sections:
+Analyse all summaries and produce four sections:
 
 ## Common Patterns Found
 Bullet list of the 2-4 recurring root causes or themes you see across investigations.
@@ -363,7 +363,13 @@ Write 2-4 concrete, ready-to-paste lines to add to the system prompt.
 Format each as a plain bullet starting with a dash (no surrounding quotes), e.g.:
 - Always check whether a small number of high-vote outlier titles (top 5-10 by numVotes) account for more than 50% of the anomaly before concluding a broader trend.
 
-Be specific and actionable. Do not repeat guidance that is already in the current prompt."""
+Be specific and actionable. Do not repeat guidance that is already in the current prompt.
+
+## Revised Full Prompt
+Write a complete, improved version of the current system prompt.
+Start from the provided current prompt as the base. Integrate the suggested additions coherently.
+Remove or replace any guidance that the investigation gaps suggest is incomplete or misleading.
+Keep all sections and structure of the original. Do not add commentary — output the full prompt text only."""
 
 
 def meta_analyze(summaries: list[str], current_prompt: str = "") -> tuple[str, int, int]:
@@ -383,7 +389,7 @@ def meta_analyze(summaries: list[str], current_prompt: str = "") -> tuple[str, i
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=2048,
+        max_tokens=4096,
         system=_META_PROMPT,
         messages=[{
             "role": "user",
