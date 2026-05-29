@@ -243,7 +243,7 @@ code { color: var(--teal) !important; }
 .stTextArea textarea:focus { border-color: var(--teal) !important; }
 
 /* ── Text input ── */
-.stTextInput, .stTextInput > div {
+.stTextInput, .stTextInput > div, .stTextInput > div > div {
     background: var(--bg-1) !important;
 }
 .stTextInput input {
@@ -251,6 +251,27 @@ code { color: var(--teal) !important; }
     border: 1.5px solid var(--border-2) !important; border-radius: var(--radius-sm) !important;
 }
 .stTextInput input:focus { border-color: var(--teal) !important; }
+
+/* ── Number input ── */
+[data-testid="stNumberInput"], [data-testid="stNumberInput"] > div,
+[data-testid="stNumberInput"] input {
+    background: var(--bg-1) !important; color: var(--text) !important;
+    border-color: var(--border-2) !important; border-radius: var(--radius-sm) !important;
+}
+
+/* ── Slider ── */
+[data-testid="stSlider"] > div { background: transparent !important; }
+[data-baseweb="slider"] { background: transparent !important; }
+[data-testid="stSliderTrack"], [data-baseweb="slider"] [role="slider"] ~ div,
+[data-baseweb="slider"] > div:first-child {
+    background: var(--border-2) !important;
+}
+[data-baseweb="slider"] [role="slider"] {
+    background: var(--teal) !important; border-color: var(--teal) !important;
+}
+[data-baseweb="slider"] [data-selected="true"] {
+    background: var(--teal) !important;
+}
 
 /* ── Metrics ── */
 [data-testid="metric-container"] {
