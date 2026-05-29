@@ -283,6 +283,20 @@ code { color: var(--teal) !important; }
 [data-testid="stMetricValue"] { color: var(--text) !important; font-variant-numeric: tabular-nums; }
 [data-testid="stMetricLabel"] { color: var(--text-3) !important; font-size: 0.72rem !important; }
 
+/* ── Spinner / status widget ── */
+[data-testid="stStatusWidget"],
+[data-testid="stSpinner"],
+.stSpinner {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text-2) !important;
+    backdrop-filter: var(--glass-blur) !important;
+}
+[data-testid="stStatusWidget"] p,
+[data-testid="stSpinner"] p,
+.stSpinner p { color: var(--text-2) !important; }
+
 /* ── Selectbox ── */
 [data-testid="stSelectbox"],
 [data-testid="stSelectbox"] > div,
