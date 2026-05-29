@@ -180,10 +180,10 @@ p, div, span, label { color: var(--text-2); }
 .stButton > button svg { display: none !important; }
 .stButton > button {
     background: rgba(255,255,255,0.07) !important;
-    color: var(--text-2) !important;
+    color: var(--text) !important;
     border: 1px solid var(--border-2) !important;
     border-radius: 50px !important; font-size: 0.72rem !important;
-    font-weight: 600 !important; padding: 5px 14px !important;
+    font-weight: 700 !important; padding: 5px 14px !important;
     white-space: nowrap !important; text-align: center !important;
     justify-content: center !important;
     transition: all 0.15s, transform 0.12s !important;
@@ -217,17 +217,23 @@ p, div, span, label { color: var(--text-2); }
 code { color: var(--teal) !important; }
 
 /* ── Text area ── */
+.stTextArea, .stTextArea > div, .stTextArea > label + div {
+    background: var(--bg-1) !important;
+}
 .stTextArea textarea {
-    background: rgba(255,255,255,0.05) !important; color: var(--text) !important;
-    border: 1.5px solid var(--border) !important; border-radius: var(--radius-sm) !important;
+    background: var(--bg-1) !important; color: var(--text) !important;
+    border: 1.5px solid var(--border-2) !important; border-radius: var(--radius-sm) !important;
     font-family: 'JetBrains Mono','Fira Code',monospace !important; font-size: 0.85rem !important;
 }
 .stTextArea textarea:focus { border-color: var(--teal) !important; }
 
 /* ── Text input ── */
+.stTextInput, .stTextInput > div {
+    background: var(--bg-1) !important;
+}
 .stTextInput input {
-    background: rgba(255,255,255,0.05) !important; color: var(--text) !important;
-    border: 1.5px solid var(--border) !important; border-radius: var(--radius-sm) !important;
+    background: var(--bg-1) !important; color: var(--text) !important;
+    border: 1.5px solid var(--border-2) !important; border-radius: var(--radius-sm) !important;
 }
 .stTextInput input:focus { border-color: var(--teal) !important; }
 
@@ -242,10 +248,19 @@ code { color: var(--teal) !important; }
 [data-testid="stMetricLabel"] { color: var(--text-3) !important; font-size: 0.72rem !important; }
 
 /* ── Selectbox ── */
-[data-testid="stSelectbox"] > div > div {
-    background: rgba(255,255,255,0.06) !important; border-color: var(--border) !important;
+[data-testid="stSelectbox"],
+[data-testid="stSelectbox"] > div,
+[data-testid="stSelectbox"] > div > div,
+[data-baseweb="select"],
+[data-baseweb="select"] > div {
+    background: var(--bg-1) !important; border-color: var(--border-2) !important;
     color: var(--text) !important; border-radius: var(--radius-sm) !important;
 }
+[data-baseweb="popover"], [data-baseweb="menu"] {
+    background: var(--bg-2) !important; border: 1px solid var(--border-2) !important;
+}
+[role="option"] { background: var(--bg-2) !important; color: var(--text) !important; }
+[role="option"]:hover { background: rgba(0,212,170,0.12) !important; }
 
 /* ── Row separator ── */
 .row-sep { display: none; }
