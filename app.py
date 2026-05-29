@@ -197,6 +197,10 @@ p, div, span, label { color: var(--text-2); }
     background: var(--teal) !important; color: #000 !important;
     border: none !important; font-weight: 700 !important;
 }
+[data-testid="stBaseButton-primary"] *,
+.stButton > button[kind="primary"] * {
+    color: #000 !important;
+}
 [data-testid="stBaseButton-primary"]:hover, .stButton > button[kind="primary"]:hover {
     background: #00bfa0 !important;
 }
@@ -941,8 +945,8 @@ elif page == "🔍  SQL Playground":
     st.markdown(
         "<div style='font-size:0.82rem;color:#9399b8;margin-bottom:16px'>"
         "Query the IMDB data directly. Available views: "
-        "<code style='background:#e8ecf8;padding:2px 6px;border-radius:4px;color:#3a3f6e'>basics</code> &nbsp;"
-        "<code style='background:#e8ecf8;padding:2px 6px;border-radius:4px;color:#3a3f6e'>ratings</code>"
+        "<code style='background:rgba(0,212,170,0.15);padding:2px 8px;border-radius:4px;color:#00d4aa;border:1px solid rgba(0,212,170,0.30)'>basics</code> &nbsp;"
+        "<code style='background:rgba(0,212,170,0.15);padding:2px 8px;border-radius:4px;color:#00d4aa;border:1px solid rgba(0,212,170,0.30)'>ratings</code>"
         "</div>",
         unsafe_allow_html=True,
     )
