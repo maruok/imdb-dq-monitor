@@ -213,6 +213,12 @@ p, div, span, label { color: var(--text-2); }
     border-radius: var(--radius) !important;
     box-shadow: var(--card-shadow), var(--card-inset) !important;
 }
+[data-testid="stExpander"] details,
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary > div,
+[data-testid="stExpander"] summary > div > div {
+    background: var(--bg-1) !important;
+}
 [data-testid="stExpander"] summary {
     color: var(--text) !important; font-weight: 600 !important;
     display: flex !important; align-items: center !important; gap: 8px !important;
@@ -220,11 +226,7 @@ p, div, span, label { color: var(--text-2); }
 }
 [data-testid="stExpander"] summary p { color: var(--text) !important; margin: 0 !important; }
 /* hide any sr-only / visually-hidden spans that Streamlit injects before the label */
-[data-testid="stExpander"] summary span:not([data-testid]) {
-    position: static !important; width: auto !important; height: auto !important;
-    clip: unset !important; overflow: visible !important;
-    display: none !important;
-}
+[data-testid="stExpander"] summary span:not([data-testid]) { display: none !important; }
 
 /* ── Code blocks ── */
 .stCodeBlock, pre { background: rgba(255,255,255,0.04) !important;
