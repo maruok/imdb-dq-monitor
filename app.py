@@ -213,7 +213,18 @@ p, div, span, label { color: var(--text-2); }
     border-radius: var(--radius) !important;
     box-shadow: var(--card-shadow), var(--card-inset) !important;
 }
-[data-testid="stExpander"] summary { color: var(--text) !important; font-weight: 600 !important; }
+[data-testid="stExpander"] summary {
+    color: var(--text) !important; font-weight: 600 !important;
+    display: flex !important; align-items: center !important; gap: 8px !important;
+    overflow: hidden !important;
+}
+[data-testid="stExpander"] summary p { color: var(--text) !important; margin: 0 !important; }
+/* hide any sr-only / visually-hidden spans that Streamlit injects before the label */
+[data-testid="stExpander"] summary span:not([data-testid]) {
+    position: static !important; width: auto !important; height: auto !important;
+    clip: unset !important; overflow: visible !important;
+    display: none !important;
+}
 
 /* ── Code blocks ── */
 .stCodeBlock, pre { background: rgba(255,255,255,0.04) !important;
@@ -987,7 +998,7 @@ elif page == "🔍  SQL Playground":
         for label, sql in examples.items():
             ec1, ec2 = st.columns([5, 1])
             ec1.markdown(
-                f"<div style='font-size:0.85rem;font-weight:600;color:#3a3f6e;padding:6px 0'>{label}</div>",
+                f"<div style='font-size:0.85rem;font-weight:600;color:var(--text-2,rgba(235,235,245,0.80));padding:6px 0'>{label}</div>",
                 unsafe_allow_html=True,
             )
             if ec2.button("Use", key=f"ex_{label}"):
@@ -1031,8 +1042,8 @@ elif page == "📝  AIQ Promptbook":
         "<div style='font-size:0.82rem;color:#9399b8;margin-bottom:20px'>"
         "Edit the system prompt given to the AI investigation agent. "
         "Changes take effect immediately on the next investigation. "
-        "The prompt is saved to <code style='background:#e8ecf8;padding:2px 6px;"
-        "border-radius:4px;color:#3a3f6e'>aiq_prompt.md</code> in the project folder."
+        "The prompt is saved to <code style='background:rgba(0,212,170,0.15);padding:2px 8px;"
+        "border-radius:4px;color:#00d4aa;border:1px solid rgba(0,212,170,0.30)'>aiq_prompt.md</code> in the project folder."
         "</div>",
         unsafe_allow_html=True,
     )
