@@ -424,7 +424,7 @@ def make_sparkline(check: CheckResult) -> go.Figure:
     bar_colors = [
         "#ff6b6b" if (y == curr and check.flagged)
         else "#00d4aa" if y == curr
-        else "#3a3a3c"
+        else "#606064"
         for y in years
     ]
 
