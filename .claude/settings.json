@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "dqm-local": {
+      "command": "python",
+      "args": ["local-agents/dqm_mcp_server.py"]
+    }
+  }
+}
