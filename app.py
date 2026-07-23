@@ -1037,38 +1037,16 @@ if page == "📋  Dashboard":
             _is_expanded = (inv_key == st.session_state.get("_expanded_inv", ""))
             with st.expander(f"Investigation: {check.name}", expanded=_is_expanded):
 
-                # ── Conclusions (always visible at top) ─────────────────────
+                # ── Investigation conclusion + its drill-down ───────────────
                 _inv_verdict = _extract_verdict(inv.summary)
                 if _inv_verdict == "ACTION REQUIRED":
                     st.error("🔴 **ACTION REQUIRED** — Genuine data quality concern detected. Deep investigation recommended.")
                 elif _inv_verdict == "NO ACTION NEEDED":
                     st.success("✅ **NO ACTION NEEDED** — Root cause explained; anomaly is understood and does not require escalation.")
 
-                if inv.review:
-                    rev = inv.review
-                    _peer_msg = f"🔬 **Peer Review: {rev.verdict or 'PENDING'}**" + (f" — {rev.summary}" if rev.summary else "")
-                    if rev.verdict == "ENDORSE":
-                        st.success(_peer_msg)
-                    elif rev.verdict == "ENDORSE-WITH-CAVEATS":
-                        st.warning(_peer_msg)
-                    elif rev.verdict == "RETURN-FOR-REWORK":
-                        st.error(_peer_msg)
-                    else:
-                        st.info(_peer_msg)
-
-                # ── Drill-down hint ─────────────────────────────────────────
                 _n_steps    = len(inv.steps)
                 _n_fu       = len(inv.follow_ups)
                 _inv_detail = f"📋  Investigation walkthrough  ·  {_n_steps} SQL quer{'y' if _n_steps == 1 else 'ies'}" + (f"  ·  {_n_fu} follow-up{'s' if _n_fu != 1 else ''}" if _n_fu else "")
-                _has_review = bool(inv.review)
-                _rev_detail = ""
-                if _has_review:
-                    rev = inv.review
-                    _nq = len(rev.challenge_queries)
-                    _nf = len(rev.findings)
-                    _rev_detail = f"🔬  Peer review audit trail  ·  {_nq} challenge quer{'y' if _nq == 1 else 'ies'}  ·  {_nf} finding{'s' if _nf != 1 else ''}"
-
-                st.markdown("<div class='drill-hint'>▼ expand for full audit trail</div>", unsafe_allow_html=True)
 
                 # ── Investigation details + follow-up (collapsed) ────────────
                 with st.expander(_inv_detail, expanded=False):
@@ -1139,9 +1117,23 @@ if page == "📋  Dashboard":
                         st.session_state._expanded_inv = inv_key
                         st.rerun()
 
-                # ── Peer review audit trail (collapsed) ─────────────────────
+                # ── Peer review conclusion + its drill-down ─────────────────
+                _has_review = bool(inv.review)
                 if _has_review:
                     rev = inv.review
+                    _peer_msg = f"🔬 **Peer Review: {rev.verdict or 'PENDING'}**" + (f" — {rev.summary}" if rev.summary else "")
+                    if rev.verdict == "ENDORSE":
+                        st.success(_peer_msg)
+                    elif rev.verdict == "ENDORSE-WITH-CAVEATS":
+                        st.warning(_peer_msg)
+                    elif rev.verdict == "RETURN-FOR-REWORK":
+                        st.error(_peer_msg)
+                    else:
+                        st.info(_peer_msg)
+
+                    _nq = len(rev.challenge_queries)
+                    _nf = len(rev.findings)
+                    _rev_detail = f"🔬  Peer review audit trail  ·  {_nq} challenge quer{'y' if _nq == 1 else 'ies'}  ·  {_nf} finding{'s' if _nf != 1 else ''}"
                     with st.expander(_rev_detail, expanded=False):
                         if rev.challenge_queries:
                             st.markdown("**Challenge queries run by reviewer:**")
