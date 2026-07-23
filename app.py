@@ -319,6 +319,42 @@ code { color: var(--teal) !important; }
 /* ── Row separator ── */
 .row-sep { display: none; }
 
+/* ── Drill-down sub-expanders (nested inside investigation expander) ── */
+[data-testid="stExpander"] [data-testid="stExpander"] {
+    background: rgba(255,255,255,0.035) !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    border-radius: var(--radius-sm) !important;
+    margin: 4px 0 !important;
+    transition: border-color 0.15s !important;
+}
+[data-testid="stExpander"] [data-testid="stExpander"]:hover {
+    border-color: rgba(255,255,255,0.32) !important;
+}
+[data-testid="stExpander"] [data-testid="stExpander"] summary {
+    background: rgba(255,255,255,0.05) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 10px 14px !important;
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+    color: var(--text-2) !important;
+    letter-spacing: 0.01em !important;
+}
+[data-testid="stExpander"] [data-testid="stExpander"] summary p {
+    font-size: 0.82rem !important;
+    font-weight: 700 !important;
+}
+[data-testid="stExpander"] [data-testid="stExpander"][open] summary {
+    border-bottom: 1px solid rgba(255,255,255,0.10) !important;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0 !important;
+}
+
+/* ── Drill-down hint label ── */
+.drill-hint {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: rgba(235,235,245,0.30);
+    text-align: center; padding: 10px 0 6px 0;
+}
+
 /* ── Sidebar download button ── */
 [data-testid="stSidebar"] .stDownloadButton > button {
     background: rgba(0,212,170,0.15) !important; color: var(--teal) !important;
@@ -1013,8 +1049,22 @@ if page == "📋  Dashboard":
                     else:
                         st.info(_peer_msg)
 
-                # ── Investigation audit trail (collapsed) ───────────────────
-                with st.expander("📋 Investigation details", expanded=False):
+                # ── Drill-down hint ─────────────────────────────────────────
+                _n_steps    = len(inv.steps)
+                _n_fu       = len(inv.follow_ups)
+                _inv_detail = f"📋  Investigation walkthrough  ·  {_n_steps} SQL quer{'y' if _n_steps == 1 else 'ies'}" + (f"  ·  {_n_fu} follow-up{'s' if _n_fu != 1 else ''}" if _n_fu else "")
+                _has_review = bool(inv.review)
+                _rev_detail = ""
+                if _has_review:
+                    rev = inv.review
+                    _nq = len(rev.challenge_queries)
+                    _nf = len(rev.findings)
+                    _rev_detail = f"🔬  Peer review audit trail  ·  {_nq} challenge quer{'y' if _nq == 1 else 'ies'}  ·  {_nf} finding{'s' if _nf != 1 else ''}"
+
+                st.markdown("<div class='drill-hint'>▼ expand for full audit trail</div>", unsafe_allow_html=True)
+
+                # ── Investigation details + follow-up (collapsed) ────────────
+                with st.expander(_inv_detail, expanded=False):
                     t1, t2, t3, t4 = st.columns(4)
                     t1.metric("Input tokens",  f"{inv.input_tokens:,}")
                     t2.metric("Output tokens", f"{inv.output_tokens:,}")
@@ -1042,10 +1092,50 @@ if page == "📋  Dashboard":
                     else:
                         st.warning(summary_text)
 
+                    # Follow-up chat lives here, inside investigation details
+                    st.markdown("---")
+                    st.markdown("#### Follow-up Questions")
+
+                    for fu_idx, fu in enumerate(inv.follow_ups):
+                        with st.chat_message("user"):
+                            st.markdown(fu.question)
+                        with st.chat_message("assistant"):
+                            if fu.steps:
+                                for si, step in enumerate(fu.steps, 1):
+                                    with st.expander(f"Step {si}", expanded=False):
+                                        if step.reasoning:
+                                            st.info(step.reasoning)
+                                        fsc1, fsc2 = st.columns([5, 1])
+                                        fsc1.code(step.sql, language="sql")
+                                        if fsc2.button("▶ Run", key=f"{inv_key}_fu{fu_idx}_s{si}"):
+                                            send_to_playground(step.sql)
+                                            st.info("Sent to SQL Playground — click the tab above.")
+                                        st.code(step.result)
+                            st.markdown(fu.response)
+                            st.caption(
+                                f"Tokens: {fu.input_tokens + fu.output_tokens:,}"
+                                f"  ·  Cost: ${fu.cost_usd:.4f}"
+                            )
+
+                    with st.form(key=f"{inv_key}_fu_form", clear_on_submit=True):
+                        fu_col1, fu_col2 = st.columns([6, 1])
+                        fu_question = fu_col1.text_input(
+                            "follow-up",
+                            placeholder="Ask a follow-up question, e.g. Which specific titles drove the change?",
+                            label_visibility="collapsed",
+                        )
+                        fu_submit = fu_col2.form_submit_button("Send →", type="primary")
+
+                    if fu_submit and fu_question.strip():
+                        with st.spinner("AI investigating follow-up..."):
+                            continue_investigation(inv, fu_question.strip(), get_con())
+                        st.session_state._expanded_inv = inv_key
+                        st.rerun()
+
                 # ── Peer review audit trail (collapsed) ─────────────────────
-                if inv.review:
+                if _has_review:
                     rev = inv.review
-                    with st.expander("🔬 Peer review details", expanded=False):
+                    with st.expander(_rev_detail, expanded=False):
                         if rev.challenge_queries:
                             st.markdown("**Challenge queries run by reviewer:**")
                             for ci, cq in enumerate(rev.challenge_queries, 1):
@@ -1079,46 +1169,6 @@ if page == "📋  Dashboard":
                         st.caption(
                             f"Review tokens: {rev.total_tokens:,}  ·  Cost: ${rev.cost_usd:.4f}"
                         )
-
-                # ── Follow-up chat ──────────────────────────────────────────
-                st.markdown("---")
-                st.markdown("#### Follow-up Questions")
-
-                for fu_idx, fu in enumerate(inv.follow_ups):
-                    with st.chat_message("user"):
-                        st.markdown(fu.question)
-                    with st.chat_message("assistant"):
-                        if fu.steps:
-                            for si, step in enumerate(fu.steps, 1):
-                                with st.expander(f"Step {si}", expanded=False):
-                                    if step.reasoning:
-                                        st.info(step.reasoning)
-                                    fsc1, fsc2 = st.columns([5, 1])
-                                    fsc1.code(step.sql, language="sql")
-                                    if fsc2.button("▶ Run", key=f"{inv_key}_fu{fu_idx}_s{si}"):
-                                        send_to_playground(step.sql)
-                                        st.info("Sent to SQL Playground — click the tab above.")
-                                    st.code(step.result)
-                        st.markdown(fu.response)
-                        st.caption(
-                            f"Tokens: {fu.input_tokens + fu.output_tokens:,}"
-                            f"  ·  Cost: ${fu.cost_usd:.4f}"
-                        )
-
-                with st.form(key=f"{inv_key}_fu_form", clear_on_submit=True):
-                    fu_col1, fu_col2 = st.columns([6, 1])
-                    fu_question = fu_col1.text_input(
-                        "follow-up",
-                        placeholder="Ask a follow-up question, e.g. Which specific titles drove the change?",
-                        label_visibility="collapsed",
-                    )
-                    fu_submit = fu_col2.form_submit_button("Send →", type="primary")
-
-                if fu_submit and fu_question.strip():
-                    with st.spinner("AI investigating follow-up..."):
-                        continue_investigation(inv, fu_question.strip(), get_con())
-                    st.session_state._expanded_inv = inv_key
-                    st.rerun()
 
         st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
 
