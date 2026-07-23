@@ -30,18 +30,18 @@ SQL_TOOL = {
 }
 
 SYSTEM_PROMPT = """You are a senior data quality analyst. A monitoring check has been flagged.
-You are given the EXACT result and the EXACT SQL that produced it.
+You are given the EXACT result and the EXACT SQL that produced it, plus the pre-run replication result.
 
 CRITICAL RULES:
-- Do NOT try to reproduce or verify the flagged number — it is correct and you already have it.
-- Always start your first query using the EXACT same filters as the replication SQL provided — this ensures you are looking at the same dataset the check was built on.
-- After establishing that baseline, you are free to use any additional filtering (LIKE, contains, different groupings, subsets) if it helps explain the root cause.
+- The replication result is already provided in the prompt — do NOT re-run it. That is your baseline.
+- Read the baseline counts (numerator and denominator for both years) from the replication result.
 - Start immediately with WHY the metric changed, not whether it changed.
+- Use the EXACT same filters as the replication SQL when comparing to prior periods.
 
-Investigation strategy (5 queries maximum per turn):
-1. Run the replication SQL for the current year AND prior year to see the absolute count change.
-2. Break down by titleType (movie, tvSeries, tvMovie, etc.) — did one type drive the shift?
-3. Find the top titles by vote count with this genre/category — which specific titles are new or growing?
+Investigation strategy (5 queries available — all for driver analysis):
+1. Break down by the most likely grouping (titleType, genres, numVotes range) to isolate the driver.
+2. Find the top titles by vote count — which specific titles are new or growing in this category?
+3. Test the leading driver: does excluding or isolating it explain the gap?
 4. If still unclear: compare title count and avg votes between current and prior year for this category.
 5. Conclude.
 
@@ -135,7 +135,7 @@ def _run_sql(con: duckdb.DuckDBPyConnection, query: str) -> str:
         return f"SQL Error: {e}"
 
 
-def _build_initial_prompt(check: CheckResult) -> str:
+def _build_initial_prompt(check: CheckResult, replication_result: str = "") -> str:
     ctx  = check.context
     unit = f" {check.unit}" if check.unit else ""
     hist_summary = "  ".join(
@@ -157,15 +157,16 @@ Prior year ({prior_year}): {ctx.get('by_year', {}).get(prior_year, 'N/A')}{unit}
 Historical trend (oldest → newest):
 {hist_summary}
 
-=== EXACT SQL THAT PRODUCED THIS RESULT ===
-Use this SQL as your starting point. Run it for {prior_year} and {ctx.get('current_year')} to see absolute counts.
-Always use the same filters (exact =) when comparing to prior periods.
-
+=== REPLICATION SQL (for reference — already run below) ===
 {replication_sql}
 
+=== BASELINE RESULT (pre-run — do NOT re-run this SQL) ===
+{replication_result or '(not available)'}
+
 === YOUR TASK ===
-Start with Step 1: run the replication SQL above to get absolute title counts for both years.
-Then investigate what drove the change — specific title types, new releases, or a few high-influence records."""
+The baseline counts above are your starting point. Do NOT re-run the replication SQL.
+Investigate what drove the change — specific title types, new releases, or a few high-influence records.
+All 5 query slots are available for driver analysis."""
 
 
 def _run_agent_loop(
@@ -233,7 +234,9 @@ def investigate(
 
     effective_prompt = system_prompt if system_prompt is not None else load_prompt()
     client   = anthropic.Anthropic(api_key=api_key)
-    messages = [{"role": "user", "content": _build_initial_prompt(check)}]
+    replication_sql    = check.context.get("replication_sql", "")
+    replication_result = _run_sql(con, replication_sql) if replication_sql else ""
+    messages = [{"role": "user", "content": _build_initial_prompt(check, replication_result)}]
 
     for _ in range(8):
         response = client.messages.create(
