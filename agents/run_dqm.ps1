@@ -155,11 +155,25 @@ for ($i = 0; $i -lt $Checks.Count; $i++) {
     Write-Banner "[$($i+1)/$($Checks.Count)] AGENT 1 -- Investigating: $check"
 
     $phaseStart = Get-Date
+    $tmpLog     = [System.IO.Path]::GetTempFileName()
+    try {
+        claude -p "/dqm-investigate $check" --dangerously-skip-permissions | Tee-Object -FilePath $tmpLog
+        $agentOut = Get-Content $tmpLog -Raw -ErrorAction SilentlyContinue
+    } finally {
+        Remove-Item $tmpLog -ErrorAction SilentlyContinue
+    }
 
-    claude -p "/dqm-investigate $check" --dangerously-skip-permissions
-
-    $newFiles = Get-FilesWrittenAfter -pattern "$InvDir\*.md" -since $phaseStart -exclude '_review'
-    $newFile  = $newFiles | Select-Object -First 1
+    # Primary: parse the filename from what the agent printed
+    $newFile = $null
+    if ($agentOut) {
+        $m = [regex]::Match($agentOut, 'agents[/\\]investigations[/\\]([\w\-,\. ]+\.md)')
+        if ($m.Success) { $newFile = $m.Groups[1].Value.Trim() }
+    }
+    # Fallback: any .md file (not review) touched after we started
+    if (-not $newFile) {
+        $found   = Get-FilesWrittenAfter -pattern "$InvDir\*.md" -since $phaseStart -exclude '_review'
+        $newFile = $found | Select-Object -First 1
+    }
 
     Write-Host ""
     if ($newFile) {
@@ -192,12 +206,26 @@ if (-not $SkipReview) {
         Write-Banner "[$($i+1)/$($investigationFiles.Count)] AGENT 2 -- Reviewing: $leaf" "Magenta"
 
         $phaseStart = Get-Date
+        $tmpLog2    = [System.IO.Path]::GetTempFileName()
+        try {
+            $relPath = "agents\investigations\$leaf"
+            claude -p "/dqm-review $relPath" --dangerously-skip-permissions | Tee-Object -FilePath $tmpLog2
+            $reviewOut = Get-Content $tmpLog2 -Raw -ErrorAction SilentlyContinue
+        } finally {
+            Remove-Item $tmpLog2 -ErrorAction SilentlyContinue
+        }
 
-        $relPath = "agents\investigations\$leaf"
-        claude -p "/dqm-review $relPath" --dangerously-skip-permissions
-
-        $newReviews = Get-FilesWrittenAfter -pattern "$InvDir\*_review.md" -since $phaseStart
-        $newReview  = @($newReviews) | Select-Object -First 1
+        # Primary: parse filename from agent output
+        $newReview = $null
+        if ($reviewOut) {
+            $rm = [regex]::Match($reviewOut, 'agents[/\\]investigations[/\\]([\w\-,\. ]+_review\.md)')
+            if ($rm.Success) { $newReview = $rm.Groups[1].Value.Trim() }
+        }
+        # Fallback: any *_review.md touched after we started
+        if (-not $newReview) {
+            $found     = Get-FilesWrittenAfter -pattern "$InvDir\*_review.md" -since $phaseStart
+            $newReview = $found | Select-Object -First 1
+        }
 
         Write-Host ""
         if ($newReview) {
