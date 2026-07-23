@@ -185,10 +185,17 @@ p, div, span, label { color: var(--text-2); }
     color: var(--text) !important;
     border: 1px solid var(--border-2) !important;
     border-radius: 50px !important; font-size: 0.72rem !important;
-    font-weight: 700 !important; padding: 5px 14px !important;
+    font-weight: 700 !important; padding: 5px 8px !important;
     white-space: nowrap !important; text-align: center !important;
     justify-content: center !important;
+    max-width: 100% !important; overflow: hidden !important;
     transition: all 0.15s, transform 0.12s !important;
+}
+/* Ensure button container never overflows its column */
+[data-testid="column"] [data-testid="stButton"],
+[data-testid="column"] [data-testid="stBaseButton-secondary"],
+[data-testid="column"] [data-testid="stBaseButton-primary"] {
+    max-width: 100% !important; overflow: hidden !important;
 }
 .stButton > button:hover {
     background: rgba(255,255,255,0.13) !important;
