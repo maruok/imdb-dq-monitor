@@ -98,6 +98,7 @@ class Investigation:
     output_tokens: int = 0
     messages: list = field(default_factory=list)    # full conversation history
     follow_ups: list = field(default_factory=list)  # list[FollowUp]
+    review: object = None                           # reviewer.Review | None — set after review() runs
 
     @property
     def total_tokens(self) -> int:

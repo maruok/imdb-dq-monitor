@@ -14,17 +14,18 @@ Call `get_check_detail("$ARGUMENTS")` to retrieve:
 - Current value and how far outside the normal range it sits
 - Prior year value for direct comparison
 - 12-year historical trend
-- The **exact replication SQL** that produced the flagged value
+- The exact replication SQL that produced the flagged value
+- **`replication_result`** — the replication SQL has already been run; the output table is included
 
-Read the replication SQL carefully — it defines the dataset you must stay anchored to.
+Read `replication_result` carefully — it is your baseline. Note the raw counts (numerator and denominator) for both years. **Do NOT run the replication SQL again.**
 
 ## Step 3 — Investigate (maximum 5 SQL queries)
 
-Use `run_sql()` to drill into the root cause. **Rules:**
+Use `run_sql()` to drill into the root cause. All 5 queries are available for driver analysis. **Rules:**
 
-- Your **first query MUST use the exact same filters as the replication SQL** — this is your baseline. Do not invent new filters for query 1.
-- After the baseline, use additional groupings (titleType, genres, numVotes, year) to narrow down the driver.
-- Do **NOT** try to re-verify or reproduce the flagged number — it is correct.
+- Start directly from the driver analysis — `replication_result` already gives you the baseline counts.
+- Stay anchored to the same filters as the replication SQL (same join, same year range).
+- Do **NOT** re-verify or reproduce the flagged number — it is correct and already shown.
 - Think WHY it changed, not whether it changed.
 
 **Common root causes to check (in order):**
@@ -54,9 +55,16 @@ Once you have identified the root cause (or reached 5 queries), write the follow
 | Prior year (2023) | [value] |
 | Change vs prior year | [+/- amount and %] |
 
+## Baseline (from replication_result — not a query)
+
+```
+[paste the replication_result table here]
+```
+**Reading:** [state the raw counts and what the baseline tells you in one sentence]
+
 ## SQL Evidence
 
-### Query 1: [what you were looking for]
+### Query 1: [what you were looking for — your first driver analysis query]
 ```sql
 [query text]
 ```

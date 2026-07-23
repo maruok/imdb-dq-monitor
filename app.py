@@ -13,6 +13,7 @@ from openpyxl.utils import get_column_letter
 from data_loader import ensure_data
 from checks import get_connection, run_all_checks, CheckResult
 from investigator import investigate, continue_investigation, Investigation, meta_analyze
+from reviewer import review, Review
 from prompts import load_prompt, save_prompt, DEFAULT_SYSTEM_PROMPT
 
 st.set_page_config(
@@ -171,7 +172,8 @@ p, div, span, label { color: var(--text-2); }
 
 /* ── Status pills ── */
 .pill { display: inline-block; padding: 4px 14px; border-radius: 20px;
-        font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        white-space: nowrap; }
 .pill-ok   { background: rgba(0,212,170,0.14);  color: #00d4aa; border: 1px solid rgba(0,212,170,0.30); }
 .pill-high { background: rgba(255,107,107,0.14); color: #ff6b6b; border: 1px solid rgba(255,107,107,0.30); }
 .pill-low  { background: rgba(77,166,255,0.14);  color: #4da6ff; border: 1px solid rgba(77,166,255,0.30); }
@@ -615,12 +617,80 @@ def build_excel(
 
     set_col_widths(ws2, [38, 13, 13, 12, 10, 70])
 
-    # ── Sheet 3: AIQ Prompt ──────────────────────────────────────────────────
-    ws3 = wb.create_sheet("AIQ Prompt")
-    ws3["A1"] = "AIQ Promptbook — System Prompt Used in This Report"
+    # ── Sheet 3: Peer Reviews ────────────────────────────────────────────────
+    ws3 = wb.create_sheet("Peer Reviews")
+    ws3["A1"] = "AI Peer Review Results"
     ws3["A1"].font = title_font
-    ws3.merge_cells("A1:B1")
+    ws3.merge_cells("A1:F1")
     ws3.row_dimensions[1].height = 22
+
+    hdr_row(ws3, 3, ["Check", "Verdict", "Summary", "Caveats", "Challenge Queries", "Cost (USD)"])
+
+    verdict_colors = {
+        "ENDORSE":              "2E7D32",
+        "ENDORSE-WITH-CAVEATS": "E65100",
+        "RETURN-FOR-REWORK":    "C62828",
+    }
+    rev_row = 4
+    for check in checks:
+        inv_key = next(
+            (k for k in investigations if check.name in k and k.endswith("_inv")), None
+        )
+        if not inv_key:
+            continue
+        inv: Investigation = investigations[inv_key]
+        rev = inv.review
+        if not rev:
+            continue
+
+        ws3.row_dimensions[rev_row].height = 18
+        caveats_text   = "\n".join(f"- {c}" for c in rev.caveats) if rev.caveats else ""
+        challenge_text = "\n".join(
+            f"Q{i}: {cq.sql[:120]}" for i, cq in enumerate(rev.challenge_queries, 1)
+        ) if rev.challenge_queries else ""
+
+        row_data = [check.name, rev.verdict, rev.summary, caveats_text, challenge_text, f"${rev.cost_usd:.4f}"]
+        for c, v in enumerate(row_data, 1):
+            cell = ws3.cell(row=rev_row, column=c, value=v)
+            cell.font   = body_font
+            cell.border = border
+            cell.alignment = wrap if c in (3, 4, 5) else Alignment(vertical="top")
+            if rev_row % 2 == 0:
+                cell.fill = grey_fill
+
+        verdict_cell = ws3.cell(row=rev_row, column=2)
+        vcolor = verdict_colors.get(rev.verdict, "6B7094")
+        verdict_cell.font = Font(bold=True, size=10, color=vcolor)
+
+        ws3.row_dimensions[rev_row].height = max(
+            40, min(15 * (max(caveats_text.count("\n"), challenge_text.count("\n")) + 1), 200)
+        )
+        rev_row += 1
+
+        for i, cq in enumerate(rev.challenge_queries, 1):
+            ws3.cell(row=rev_row, column=1, value=f"  Challenge {i} SQL").font = Font(size=9, italic=True, color="6B7094")
+            cell = ws3.cell(row=rev_row, column=5, value=cq.sql)
+            cell.font      = Font(name="Courier New", size=9, color="3A3F6E")
+            cell.alignment = wrap
+            ws3.row_dimensions[rev_row].height = 30
+            rev_row += 1
+
+            result_cell = ws3.cell(row=rev_row, column=1, value=f"  Challenge {i} Result")
+            result_cell.font = Font(size=9, italic=True, color="9399B8")
+            cell = ws3.cell(row=rev_row, column=5, value=cq.result[:500])
+            cell.font      = Font(name="Courier New", size=9, color="1A1D35")
+            cell.alignment = wrap
+            ws3.row_dimensions[rev_row].height = 40
+            rev_row += 1
+
+    set_col_widths(ws3, [38, 22, 40, 35, 55, 12])
+
+    # ── Sheet 4: AIQ Prompt ──────────────────────────────────────────────────
+    ws4 = wb.create_sheet("AIQ Prompt")
+    ws4["A1"] = "AIQ Promptbook — System Prompt Used in This Report"
+    ws4["A1"].font = title_font
+    ws4.merge_cells("A1:B1")
+    ws4.row_dimensions[1].height = 22
 
     meta_rows = [
         ("Report generated",   datetime.datetime.now().strftime("%Y-%m-%d %H:%M")),
@@ -629,46 +699,46 @@ def build_excel(
         ("Prompt source",      "aiq_prompt.md (file) if saved, else built-in default"),
     ]
     for r, (label, value) in enumerate(meta_rows, 3):
-        ws3.cell(row=r, column=1, value=label).font  = Font(bold=True, size=10, color="6B7094")
-        ws3.cell(row=r, column=2, value=value).font  = Font(size=10)
-        ws3.row_dimensions[r].height = 16
+        ws4.cell(row=r, column=1, value=label).font  = Font(bold=True, size=10, color="6B7094")
+        ws4.cell(row=r, column=2, value=value).font  = Font(size=10)
+        ws4.row_dimensions[r].height = 16
 
-    ws3.cell(row=8, column=1, value="System Prompt Text").font = Font(bold=True, size=10, color="1A1D35")
-    ws3.row_dimensions[8].height = 18
+    ws4.cell(row=8, column=1, value="System Prompt Text").font = Font(bold=True, size=10, color="1A1D35")
+    ws4.row_dimensions[8].height = 18
 
-    prompt_cell = ws3.cell(row=9, column=1, value=aiq_prompt or "(no prompt captured)")
+    prompt_cell = ws4.cell(row=9, column=1, value=aiq_prompt or "(no prompt captured)")
     prompt_cell.font      = Font(name="Courier New", size=9, color="3A3F6E")
     prompt_cell.alignment = Alignment(wrap_text=True, vertical="top")
-    ws3.merge_cells("A9:B9")
-    ws3.row_dimensions[9].height = max(200, min(15 * aiq_prompt.count("\n"), 600))
-    ws3.column_dimensions["A"].width = 60
-    ws3.column_dimensions["B"].width = 40
+    ws4.merge_cells("A9:B9")
+    ws4.row_dimensions[9].height = max(200, min(15 * aiq_prompt.count("\n"), 600))
+    ws4.column_dimensions["A"].width = 60
+    ws4.column_dimensions["B"].width = 40
 
-    # ── Sheet 4: AIQ Meta-Analysis Suggestions ───────────────────────────────
-    ws4 = wb.create_sheet("AIQ Meta-Analysis")
-    ws4["A1"] = "AIQ Meta-Analysis — Prompt Improvement Suggestions"
-    ws4["A1"].font = title_font
-    ws4.merge_cells("A1:B1")
-    ws4.row_dimensions[1].height = 22
-    ws4["A2"] = (
+    # ── Sheet 5: AIQ Meta-Analysis Suggestions ───────────────────────────────
+    ws5 = wb.create_sheet("AIQ Meta-Analysis")
+    ws5["A1"] = "AIQ Meta-Analysis — Prompt Improvement Suggestions"
+    ws5["A1"].font = title_font
+    ws5.merge_cells("A1:B1")
+    ws5.row_dimensions[1].height = 22
+    ws5["A2"] = (
         f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}  |  "
         f"Based on batch run for period {current_year}"
     )
-    ws4["A2"].font = Font(size=9, color="6B7094")
-    ws4.merge_cells("A2:B2")
+    ws5["A2"].font = Font(size=9, color="6B7094")
+    ws5.merge_cells("A2:B2")
 
     if meta_suggestion:
-        ws4.cell(row=4, column=1, value="Suggestions Text").font = Font(bold=True, size=10, color="1A1D35")
-        sug_cell = ws4.cell(row=5, column=1, value=meta_suggestion)
+        ws5.cell(row=4, column=1, value="Suggestions Text").font = Font(bold=True, size=10, color="1A1D35")
+        sug_cell = ws5.cell(row=5, column=1, value=meta_suggestion)
         sug_cell.font      = Font(size=10)
         sug_cell.alignment = Alignment(wrap_text=True, vertical="top")
-        ws4.merge_cells("A5:B5")
-        ws4.row_dimensions[5].height = max(200, min(15 * meta_suggestion.count("\n"), 600))
+        ws5.merge_cells("A5:B5")
+        ws5.row_dimensions[5].height = max(200, min(15 * meta_suggestion.count("\n"), 600))
     else:
-        ws4.cell(row=4, column=1, value="No batch meta-analysis run yet for this session.").font = Font(size=10, color="9399B8")
+        ws5.cell(row=4, column=1, value="No batch meta-analysis run yet for this session.").font = Font(size=10, color="9399B8")
 
-    ws4.column_dimensions["A"].width = 80
-    ws4.column_dimensions["B"].width = 20
+    ws5.column_dimensions["A"].width = 80
+    ws5.column_dimensions["B"].width = 20
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -725,12 +795,22 @@ with st.sidebar:
     _dl_checks = st.session_state.get("_checks_cache")
     if _dl_checks:
         _dl_filename = f"dq_report_{current_year}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        # Key changes when investigations are added — forces Streamlit to use freshly
+        # computed bytes on first click rather than a stale cached widget value.
+        _inv_count = len(st.session_state.investigations)
+        _xl_bytes  = build_excel(
+            _dl_checks, st.session_state.investigations,
+            current_year, n_hist,
+            st.session_state.aiq_prompt,
+            st.session_state.meta_suggestion,
+        )
         st.download_button(
             label="⬇  Download Report (Excel)",
-            data=build_excel(_dl_checks, st.session_state.investigations, current_year, n_hist, st.session_state.aiq_prompt, st.session_state.meta_suggestion),
+            data=_xl_bytes,
             file_name=_dl_filename,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
+            key=f"dl_report_{_inv_count}",
         )
     else:
         st.caption("Open the Dashboard to enable export.")
@@ -827,7 +907,7 @@ if page == "📋  Dashboard":
         inv_key = key + "_inv"
 
         c_name, c_chart, c_val, c_range, c_status, c_action = st.columns(
-            [2.4, 2.2, 0.9, 1.6, 0.85, 1.05]
+            [2.2, 2.0, 0.9, 1.5, 1.0, 1.4]
         )
 
         name_cls = "check-name-flagged" if check.flagged else "check-name"
@@ -857,9 +937,11 @@ if page == "📋  Dashboard":
                 unsafe_allow_html=True,
             )
             if c_action.button("Investigate", key=key):
-                with st.spinner("AI investigating..."):
-                    inv = investigate(check, get_con())
-                    st.session_state.investigations[inv_key] = inv
+                with st.spinner("🔍 AI investigating..."):
+                    inv = investigate(check, get_con(), st.session_state.aiq_prompt)
+                with st.spinner("🔬 Independent peer review in progress..."):
+                    inv.review = review(inv, check, get_con())
+                st.session_state.investigations[inv_key] = inv
                 st.session_state._expanded_inv = inv_key
         else:
             c_status.markdown(
@@ -958,6 +1040,55 @@ if page == "📋  Dashboard":
                     st.session_state._expanded_inv = inv_key
                     st.rerun()
 
+                # ── Peer Review ─────────────────────────────────────────────
+                if inv.review:
+                    rev = inv.review
+                    st.markdown("---")
+                    _verdict_color = {
+                        "ENDORSE":              "green",
+                        "ENDORSE-WITH-CAVEATS": "orange",
+                        "RETURN-FOR-REWORK":    "red",
+                    }.get(rev.verdict, "gray")
+                    st.markdown(
+                        f"**🔬 Peer Review — :{_verdict_color}[{rev.verdict or 'PENDING'}]**"
+                    )
+                    if rev.summary:
+                        st.caption(rev.summary)
+                    with st.expander("Review details", expanded=False):
+                        if rev.challenge_queries:
+                            st.markdown("**Challenge queries run by reviewer:**")
+                            for ci, cq in enumerate(rev.challenge_queries, 1):
+                                st.markdown(f"**Challenge {ci}**")
+                                if cq.reasoning:
+                                    st.info(cq.reasoning[:400])
+                                rc1, rc2 = st.columns([5, 1])
+                                rc1.code(cq.sql, language="sql")
+                                if rc2.button("▶ Run", key=f"{inv_key}_rev_q{ci}"):
+                                    send_to_playground(cq.sql)
+                                    st.info("Sent to SQL Playground.")
+                                st.code(cq.result)
+                        if rev.findings:
+                            st.markdown("**Finding assessments:**")
+                            _assess_color = {
+                                "CONFIRMED":    "green",
+                                "PLAUSIBLE":    "blue",
+                                "NEEDS-RECHECK":"orange",
+                                "DISPUTED":     "red",
+                            }
+                            for f in rev.findings:
+                                color = _assess_color.get(f.assessment, "gray")
+                                st.markdown(
+                                    f"- :{color}[**{f.assessment}**] {f.claim}"
+                                    + (f" — {f.reason}" if f.reason else "")
+                                )
+                        if rev.caveats:
+                            st.markdown("**Gaps / missed checks:**")
+                            for c in rev.caveats:
+                                st.markdown(f"- {c}")
+                        st.caption(
+                            f"Review tokens: {rev.total_tokens:,}  ·  Cost: ${rev.cost_usd:.4f}"
+                        )
+
         st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
 
     def render_section(title: str, section_checks: list[CheckResult], key_prefix: str, section_class: str):
@@ -969,7 +1100,7 @@ if page == "📋  Dashboard":
                 f"<div class='section-header section-header-{key_prefix}'>{title}</div>",
                 unsafe_allow_html=True,
             )
-            h = st.columns([2.4, 2.2, 0.9, 1.6, 0.85, 1.05])
+            h = st.columns([2.2, 2.0, 0.9, 1.5, 1.0, 1.4])
             for col, label in zip(h, ["Check", "12-period trend", "Current", "Normal range", "Status", "Action"]):
                 col.markdown(f"<div class='col-header'>{label}</div>", unsafe_allow_html=True)
             for check in sorted(section_checks, key=lambda c: (not c.flagged, c.name)):
