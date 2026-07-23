@@ -31,11 +31,11 @@
     Run Phase 1 only (investigations, no reviews). Useful for quick checks.
 
 .EXAMPLE
-    .\local-agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries"
-    .\local-agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries","genre: Drama"
-    .\local-agents\run_dqm.ps1 -All -Max 3
-    .\local-agents\run_dqm.ps1 -All -Max 5 -PauseSecs 30
-    .\local-agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries" -SkipReview
+    .\agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries"
+    .\agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries","genre: Drama"
+    .\agents\run_dqm.ps1 -All -Max 3
+    .\agents\run_dqm.ps1 -All -Max 5 -PauseSecs 30
+    .\agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries" -SkipReview
 #>
 param(
     [string[]] $Checks,
@@ -70,11 +70,12 @@ function Write-Banner {
     Write-Host $line -ForegroundColor $color
 }
 
-function Get-NewFiles {
-    param([string[]]$before, [string]$pattern)
-    $after = @(Get-ChildItem $pattern -ErrorAction SilentlyContinue |
-               Select-Object -ExpandProperty Name)
-    return @($after | Where-Object { $_ -notin $before })
+function Get-FilesWrittenAfter {
+    param([string]$pattern, [datetime]$since, [string]$exclude = '')
+    $files = @(Get-ChildItem $pattern -ErrorAction SilentlyContinue |
+               Where-Object { $_.LastWriteTime -gt $since })
+    if ($exclude) { $files = @($files | Where-Object { $_.Name -notmatch $exclude }) }
+    return @($files | Select-Object -ExpandProperty Name)
 }
 
 function Get-Verdict {
@@ -88,7 +89,7 @@ function Get-Verdict {
 function Get-FlaggedCheckNames {
     $py = @'
 import sys
-sys.path.insert(0, 'local-agents')
+sys.path.insert(0, 'agents')
 sys.path.insert(0, '.')
 from dqm_mcp_server import list_flagged_checks
 print(list_flagged_checks())
@@ -124,10 +125,10 @@ if ($All) {
 if (-not $Checks -or $Checks.Count -eq 0) {
     Write-Host ""
     Write-Host "Usage:"
-    Write-Host '  .\local-agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries"'
-    Write-Host '  .\local-agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries","genre: Drama"'
-    Write-Host '  .\local-agents\run_dqm.ps1 -All'
-    Write-Host '  .\local-agents\run_dqm.ps1 -All -Max 3 -PauseSecs 30'
+    Write-Host '  .\agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries"'
+    Write-Host '  .\agents\run_dqm.ps1 -Checks "titleType: tvMiniSeries","genre: Drama"'
+    Write-Host '  .\agents\run_dqm.ps1 -All'
+    Write-Host '  .\agents\run_dqm.ps1 -All -Max 3 -PauseSecs 30'
     Write-Host ""
     return
 }
@@ -153,14 +154,11 @@ for ($i = 0; $i -lt $Checks.Count; $i++) {
     $check = $Checks[$i]
     Write-Banner "[$($i+1)/$($Checks.Count)] AGENT 1 -- Investigating: $check"
 
-    $snapshot = @(Get-ChildItem "$InvDir\*.md" -ErrorAction SilentlyContinue |
-                  Where-Object { $_.Name -notmatch '_review' } |
-                  Select-Object -ExpandProperty Name)
+    $phaseStart = Get-Date
 
     claude -p "/dqm-investigate $check" --dangerously-skip-permissions
 
-    $newFiles = Get-NewFiles -before $snapshot -pattern "$InvDir\*.md"
-    $newFiles = @($newFiles | Where-Object { $_ -notmatch '_review' })
+    $newFiles = Get-FilesWrittenAfter -pattern "$InvDir\*.md" -since $phaseStart -exclude '_review'
     $newFile  = $newFiles | Select-Object -First 1
 
     Write-Host ""
@@ -193,13 +191,12 @@ if (-not $SkipReview) {
         $leaf    = Split-Path $invFile -Leaf
         Write-Banner "[$($i+1)/$($investigationFiles.Count)] AGENT 2 -- Reviewing: $leaf" "Magenta"
 
-        $snapshot = @(Get-ChildItem "$InvDir\*_review.md" -ErrorAction SilentlyContinue |
-                      Select-Object -ExpandProperty Name)
+        $phaseStart = Get-Date
 
-        $relPath = "local-agents\investigations\$leaf"
+        $relPath = "agents\investigations\$leaf"
         claude -p "/dqm-review $relPath" --dangerously-skip-permissions
 
-        $newReviews = Get-NewFiles -before $snapshot -pattern "$InvDir\*_review.md"
+        $newReviews = Get-FilesWrittenAfter -pattern "$InvDir\*_review.md" -since $phaseStart
         $newReview  = @($newReviews) | Select-Object -First 1
 
         Write-Host ""

@@ -413,6 +413,17 @@ def _inv_key(check: CheckResult) -> str:
     return f"{prefix}_{check.name}_inv"
 
 
+def _extract_verdict(summary: str) -> str:
+    """Extract ACTION REQUIRED / NO ACTION NEEDED from an investigation summary."""
+    for line in summary.split("\n"):
+        s = line.strip().replace("*", "").replace("_", "").upper()
+        if "ACTION REQUIRED" in s:
+            return "ACTION REQUIRED"
+        if "NO ACTION NEEDED" in s:
+            return "NO ACTION NEEDED"
+    return ""
+
+
 # ---------------------------------------------------------------------------
 # Sparkline
 # ---------------------------------------------------------------------------
@@ -509,16 +520,40 @@ def build_excel(
     )
     ws1["A2"].font = Font(size=9, color="6B7094")
     ws1.row_dimensions[1].height = 22
-    ws1.merge_cells("A1:G1")
-    ws1.merge_cells("A2:G2")
+    ws1.merge_cells("A1:I1")
+    ws1.merge_cells("A2:I2")
 
-    headers = ["Check", "Type", "Current Value", "Normal Range (Low)", "Normal Range (High)", "Status", "Direction"]
+    headers = ["Check", "Type", "Current Value", "Normal Range (Low)", "Normal Range (High)",
+               "Status", "Direction", "Investigation Verdict", "Peer Review"]
     hdr_row(ws1, 4, headers)
+
+    _verdict_font = {
+        "ACTION REQUIRED":  Font(bold=True, size=10, color="C62828"),
+        "NO ACTION NEEDED": Font(bold=True, size=10, color="2E7D32"),
+    }
+    _verdict_fill = {
+        "ACTION REQUIRED":  PatternFill("solid", fgColor="FFEBEE"),
+        "NO ACTION NEEDED": PatternFill("solid", fgColor="E8F5E9"),
+    }
+    _peer_font = {
+        "ENDORSE":              Font(bold=True, size=10, color="2E7D32"),
+        "ENDORSE-WITH-CAVEATS": Font(bold=True, size=10, color="E65100"),
+        "RETURN-FOR-REWORK":    Font(bold=True, size=10, color="C62828"),
+    }
+    _peer_fill = {
+        "ENDORSE":              PatternFill("solid", fgColor="E8F5E9"),
+        "ENDORSE-WITH-CAVEATS": PatternFill("solid", fgColor="FFF3E0"),
+        "RETURN-FOR-REWORK":    PatternFill("solid", fgColor="FFEBEE"),
+    }
 
     type_labels = {"numerical": "Numerical", "null_rate": "Null Rate", "categorical": "Categorical"}
     for r, check in enumerate(checks, 5):
         ws1.row_dimensions[r].height = 18
         unit = f" {check.unit}" if check.unit else ""
+        exact_key  = _inv_key(check)
+        inv_obj    = investigations.get(exact_key)
+        inv_verd   = _extract_verdict(inv_obj.summary) if inv_obj else ""
+        peer_verd  = (inv_obj.review.verdict if inv_obj and inv_obj.review else "")
         row_data = [
             check.name,
             type_labels.get(check.context.get("check_type", ""), ""),
@@ -527,16 +562,28 @@ def build_excel(
             f"{check.fence_high}{unit}",
             "FLAGGED" if check.flagged else "OK",
             check.flag_direction if check.flagged else "",
+            inv_verd,
+            peer_verd,
         ]
-        fill = flag_fill if check.flagged else (grey_fill if r % 2 == 0 else PatternFill())
+        base_fill = flag_fill if check.flagged else (grey_fill if r % 2 == 0 else PatternFill())
         for c, v in enumerate(row_data, 1):
             cell = ws1.cell(row=r, column=c, value=v)
-            cell.font = flag_font if (check.flagged and c == 6) else (ok_font if c == 6 else body_font)
-            cell.fill = fill
+            if c == 6:
+                cell.font = flag_font if check.flagged else ok_font
+                cell.fill = base_fill
+            elif c == 8 and inv_verd:
+                cell.font = _verdict_font.get(inv_verd, body_font)
+                cell.fill = _verdict_fill.get(inv_verd, base_fill)
+            elif c == 9 and peer_verd:
+                cell.font = _peer_font.get(peer_verd, body_font)
+                cell.fill = _peer_fill.get(peer_verd, base_fill)
+            else:
+                cell.font = body_font
+                cell.fill = base_fill
             cell.border = border
             cell.alignment = center if c > 1 else Alignment(vertical="center")
 
-    set_col_widths(ws1, [38, 14, 14, 18, 18, 10, 10])
+    set_col_widths(ws1, [38, 14, 14, 18, 18, 10, 10, 22, 22])
 
     # ── Sheet 2: Investigations ──────────────────────────────────────────────
     ws2 = wb.create_sheet("Investigations")
@@ -548,17 +595,10 @@ def build_excel(
     hdr_row(ws2, 3, ["Check", "Input Tokens", "Output Tokens", "Cost (USD)", "Completed", "Summary"])
 
     row_num = 4
-    inv_key_map = {
-        k.replace("num_", "").replace("null_", "").replace("cat_", "").replace("_inv", ""): v
-        for k, v in investigations.items()
-    }
 
     for check in checks:
-        # Find the matching investigation by check name
-        inv_key = next(
-            (k for k in investigations if check.name in k and k.endswith("_inv")), None
-        )
-        if not inv_key:
+        inv_key = _inv_key(check)
+        if inv_key not in investigations:
             continue
         inv: Investigation = investigations[inv_key]
 
@@ -633,10 +673,8 @@ def build_excel(
     }
     rev_row = 4
     for check in checks:
-        inv_key = next(
-            (k for k in investigations if check.name in k and k.endswith("_inv")), None
-        )
-        if not inv_key:
+        inv_key = _inv_key(check)
+        if inv_key not in investigations:
             continue
         inv: Investigation = investigations[inv_key]
         rev = inv.review
@@ -943,6 +981,7 @@ if page == "📋  Dashboard":
                     inv.review = review(inv, check, get_con())
                 st.session_state.investigations[inv_key] = inv
                 st.session_state._expanded_inv = inv_key
+                st.rerun()
         else:
             c_status.markdown(
                 "<span class='pill pill-ok'>OK</span>",
@@ -954,51 +993,92 @@ if page == "📋  Dashboard":
             inv = st.session_state.investigations[inv_key]
             _is_expanded = (inv_key == st.session_state.get("_expanded_inv", ""))
             with st.expander(f"Investigation: {check.name}", expanded=_is_expanded):
-                t1, t2, t3, t4 = st.columns(4)
-                t1.metric("Input tokens",  f"{inv.input_tokens:,}")
-                t2.metric("Output tokens", f"{inv.output_tokens:,}")
-                t3.metric("Total tokens",  f"{inv.total_tokens:,}")
-                t4.metric("Cost",          f"${inv.cost_usd:.4f}")
-                st.markdown("---")
 
-                if inv.steps:
-                    st.markdown("#### Reasoning trace")
-                    for i, step in enumerate(inv.steps, 1):
-                        st.markdown(f"**Step {i}**")
-                        if step.reasoning:
-                            st.info(step.reasoning)
-                        sc1, sc2 = st.columns([5, 1])
-                        sc1.code(step.sql, language="sql")
-                        if sc2.button("▶ Run", key=f"{inv_key}_step_{i}"):
-                            send_to_playground(step.sql)
-                            st.info("Sent to SQL Playground — click the tab above.")
-                        st.code(step.result)
-                    st.markdown("---")
+                # ── Conclusions (always visible at top) ─────────────────────
+                _inv_verdict = _extract_verdict(inv.summary)
+                if _inv_verdict == "ACTION REQUIRED":
+                    st.error("🔴 **ACTION REQUIRED** — Genuine data quality concern detected. Deep investigation recommended.")
+                elif _inv_verdict == "NO ACTION NEEDED":
+                    st.success("✅ **NO ACTION NEEDED** — Root cause explained; anomaly is understood and does not require escalation.")
 
-                st.markdown("#### Summary")
-                lines        = inv.summary.split("\n")
-                summary_text = "\n".join(
-                    l for l in lines
-                    if not l.startswith("VERIFY:")
-                    and not l.strip().startswith("ACTION REQUIRED:")
-                    and not l.strip().startswith("NO ACTION NEEDED:")
-                )
-                _verdict = next(
-                    (l.strip() for l in lines
-                     if l.strip().startswith("ACTION REQUIRED:") or l.strip().startswith("NO ACTION NEEDED:")),
-                    None,
-                )
-
-                if _verdict:
-                    if _verdict.startswith("ACTION REQUIRED:"):
-                        st.error(f"🔴 {_verdict}")
+                if inv.review:
+                    rev = inv.review
+                    _peer_msg = f"🔬 **Peer Review: {rev.verdict or 'PENDING'}**" + (f" — {rev.summary}" if rev.summary else "")
+                    if rev.verdict == "ENDORSE":
+                        st.success(_peer_msg)
+                    elif rev.verdict == "ENDORSE-WITH-CAVEATS":
+                        st.warning(_peer_msg)
+                    elif rev.verdict == "RETURN-FOR-REWORK":
+                        st.error(_peer_msg)
                     else:
-                        st.success(f"✅ {_verdict}")
+                        st.info(_peer_msg)
 
-                if inv.completed:
-                    st.success(summary_text)
-                else:
-                    st.warning(summary_text)
+                # ── Investigation audit trail (collapsed) ───────────────────
+                with st.expander("📋 Investigation details", expanded=False):
+                    t1, t2, t3, t4 = st.columns(4)
+                    t1.metric("Input tokens",  f"{inv.input_tokens:,}")
+                    t2.metric("Output tokens", f"{inv.output_tokens:,}")
+                    t3.metric("Total tokens",  f"{inv.total_tokens:,}")
+                    t4.metric("Cost",          f"${inv.cost_usd:.4f}")
+
+                    if inv.steps:
+                        st.markdown("#### Reasoning trace")
+                        for i, step in enumerate(inv.steps, 1):
+                            st.markdown(f"**Step {i}**")
+                            if step.reasoning:
+                                st.info(step.reasoning)
+                            sc1, sc2 = st.columns([5, 1])
+                            sc1.code(step.sql, language="sql")
+                            if sc2.button("▶ Run", key=f"{inv_key}_step_{i}"):
+                                send_to_playground(step.sql)
+                                st.info("Sent to SQL Playground — click the tab above.")
+                            st.code(step.result)
+
+                    st.markdown("#### Full summary")
+                    lines        = inv.summary.split("\n")
+                    summary_text = "\n".join(l for l in lines if not l.startswith("VERIFY:"))
+                    if inv.completed:
+                        st.success(summary_text)
+                    else:
+                        st.warning(summary_text)
+
+                # ── Peer review audit trail (collapsed) ─────────────────────
+                if inv.review:
+                    rev = inv.review
+                    with st.expander("🔬 Peer review details", expanded=False):
+                        if rev.challenge_queries:
+                            st.markdown("**Challenge queries run by reviewer:**")
+                            for ci, cq in enumerate(rev.challenge_queries, 1):
+                                st.markdown(f"**Challenge {ci}**")
+                                if cq.reasoning:
+                                    st.info(cq.reasoning[:400])
+                                rc1, rc2 = st.columns([5, 1])
+                                rc1.code(cq.sql, language="sql")
+                                if rc2.button("▶ Run", key=f"{inv_key}_rev_q{ci}"):
+                                    send_to_playground(cq.sql)
+                                    st.info("Sent to SQL Playground.")
+                                st.code(cq.result)
+                        if rev.findings:
+                            st.markdown("**Finding assessments:**")
+                            _assess_color = {
+                                "CONFIRMED":    "green",
+                                "PLAUSIBLE":    "blue",
+                                "NEEDS-RECHECK":"orange",
+                                "DISPUTED":     "red",
+                            }
+                            for f in rev.findings:
+                                color = _assess_color.get(f.assessment, "gray")
+                                st.markdown(
+                                    f"- :{color}[**{f.assessment}**] {f.claim}"
+                                    + (f" — {f.reason}" if f.reason else "")
+                                )
+                        if rev.caveats:
+                            st.markdown("**Gaps / missed checks:**")
+                            for c in rev.caveats:
+                                st.markdown(f"- {c}")
+                        st.caption(
+                            f"Review tokens: {rev.total_tokens:,}  ·  Cost: ${rev.cost_usd:.4f}"
+                        )
 
                 # ── Follow-up chat ──────────────────────────────────────────
                 st.markdown("---")
@@ -1039,55 +1119,6 @@ if page == "📋  Dashboard":
                         continue_investigation(inv, fu_question.strip(), get_con())
                     st.session_state._expanded_inv = inv_key
                     st.rerun()
-
-                # ── Peer Review ─────────────────────────────────────────────
-                if inv.review:
-                    rev = inv.review
-                    st.markdown("---")
-                    _verdict_color = {
-                        "ENDORSE":              "green",
-                        "ENDORSE-WITH-CAVEATS": "orange",
-                        "RETURN-FOR-REWORK":    "red",
-                    }.get(rev.verdict, "gray")
-                    st.markdown(
-                        f"**🔬 Peer Review — :{_verdict_color}[{rev.verdict or 'PENDING'}]**"
-                    )
-                    if rev.summary:
-                        st.caption(rev.summary)
-                    with st.expander("Review details", expanded=False):
-                        if rev.challenge_queries:
-                            st.markdown("**Challenge queries run by reviewer:**")
-                            for ci, cq in enumerate(rev.challenge_queries, 1):
-                                st.markdown(f"**Challenge {ci}**")
-                                if cq.reasoning:
-                                    st.info(cq.reasoning[:400])
-                                rc1, rc2 = st.columns([5, 1])
-                                rc1.code(cq.sql, language="sql")
-                                if rc2.button("▶ Run", key=f"{inv_key}_rev_q{ci}"):
-                                    send_to_playground(cq.sql)
-                                    st.info("Sent to SQL Playground.")
-                                st.code(cq.result)
-                        if rev.findings:
-                            st.markdown("**Finding assessments:**")
-                            _assess_color = {
-                                "CONFIRMED":    "green",
-                                "PLAUSIBLE":    "blue",
-                                "NEEDS-RECHECK":"orange",
-                                "DISPUTED":     "red",
-                            }
-                            for f in rev.findings:
-                                color = _assess_color.get(f.assessment, "gray")
-                                st.markdown(
-                                    f"- :{color}[**{f.assessment}**] {f.claim}"
-                                    + (f" — {f.reason}" if f.reason else "")
-                                )
-                        if rev.caveats:
-                            st.markdown("**Gaps / missed checks:**")
-                            for c in rev.caveats:
-                                st.markdown(f"- {c}")
-                        st.caption(
-                            f"Review tokens: {rev.total_tokens:,}  ·  Cost: ${rev.cost_usd:.4f}"
-                        )
 
         st.markdown("<hr class='row-sep'>", unsafe_allow_html=True)
 

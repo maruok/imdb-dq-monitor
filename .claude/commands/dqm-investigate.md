@@ -102,4 +102,4 @@ Call `save_finding("[YYYY-MM-DD]_[short_check_name].md", [full report as string]
 Tell the user:
 1. The filename where findings were saved
 2. Your one-sentence verdict
-3. How to run the review agent: `/dqm-review local-agents/investigations/[filename]`
+3. How to run the review agent: `/dqm-review agents/investigations/[filename]`
